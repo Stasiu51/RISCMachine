@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Dict, Callable
 from constants import *
+from assembler import assemble
 
 class SegmentationFaultError(Exception):
     pass
@@ -28,8 +29,14 @@ class Computer:
             OPCODE_SUB: self.sub,
             OPCODE_CMP: self.cmp
         }
-        self.debug_callbacks = {ZERO: lambda arg1,arg2,data: print(
-            f"Debug: {arg1=:05b},{arg2=:05b},{data=:016b}")} # Default debug print behaviour
+        self.debug_mode = False
+
+    @staticmethod
+    def assemble_and_run(code, debug_mode = False):
+        computer = Computer()
+        program_data = assemble(code)
+        computer.set_memory_chunk(0, program_data)
+        computer.execute(debug_mode = debug_mode)
     
     def set_memory_chunk(self, address, data):
         if not 0 <= address < self.memory_size:
@@ -58,7 +65,9 @@ class Computer:
             raise SegmentationFaultError("Attempted to write to invalid address")
         return self.memory[address]
 
-    def execute(self):
+
+    def execute(self, debug_mode = False):
+        self.debug_mode = debug_mode
         self.status_reg = RUNNING_FLAG_MASK.set(self.status_reg, ONE)
 
         while RUNNING_FLAG_MASK.get(self.status_reg):
@@ -83,11 +92,11 @@ class Computer:
     # Functions for instructions. Take the decoded arguments and return whether the computer should halt execution.
 
     def nop(self, arg1, arg2, data):
-        print("nop")
+        if self.debug_mode: print("nop")
         pass
      
     def halt(self, arg1, arg2, data):
-        print("halt")
+        if self.debug_mode: print("halt")
         # halt the computer
         self.status_reg = RUNNING_FLAG_MASK.set(self.status_reg, ZERO)
 
@@ -99,7 +108,7 @@ class Computer:
               f"address {address}: {self.memory[address]:032b} = {self.memory[address]}")
 
     def load(self, register, control_flags, adrs_or_data):
-        print(f"load {register}, {control_flags:05b}, {adrs_or_data}")
+        if self.debug_mode: print(f"load {register}, {control_flags:05b}, {adrs_or_data}")
         if register <= 1:
             print(f"Warning: attempted to load to register {register} which is read-only.")
             return
@@ -132,7 +141,7 @@ class Computer:
                 self.data_regs[register] = half_source_bits | (self.data_regs[register] & SIG_HALF_ONES)
 
     def store(self, register, control_flags, adrs_or_data):
-        print(f"store {register}, {control_flags:05b}, {adrs_or_data}")
+        if self.debug_mode: print(f"store {register}, {control_flags:05b}, {adrs_or_data}")
 
         if not 0 <= adrs_or_data < self.memory_size:
             raise SegmentationFaultError(f"Attempted to write to address {adrs_or_data}, which is out of range.")
@@ -164,7 +173,7 @@ class Computer:
                 self.memory[adrs_or_data] = half_source_bits | (self.data_regs[register] & SIG_HALF_ONES)
 
     def jump(self, control_register, control_flags, jump_amount):
-        print(f"jump {control_register=}, {control_flags=:05b}, {jump_amount=}")
+        if self.debug_mode: print(f"jump {control_register=}, {control_flags=:05b}, {jump_amount=}")
         if (self.comp_reg >> control_register) & 1 == JUMP_CONDITION_FLAG.get(control_flags):
             # subtract 1 for convenience as the computer will add one at the end of the cycle
             new_PC = self.PC - jump_amount - 1 if JUMP_SUBTRACT_FLAG.get(control_flags) else self.PC + jump_amount - 1
@@ -174,7 +183,7 @@ class Computer:
 
     def add(self, reg_1, reg_2, reg_3_data):
         reg_3 = reg_3_data >> 11
-        print(f"add {reg_1=}, {reg_2=}, {reg_3=}")
+        if self.debug_mode: print(f"add {reg_1=}, {reg_2=}, {reg_3=}")
         if reg_3 <= 1:
             print(f"Warning: attempted to add into register {reg_3} which is read-only.")
             return
@@ -188,7 +197,7 @@ class Computer:
 
     def sub(self, reg_1, reg_2, reg_3_data):
         reg_3 = reg_3_data >> 11
-        print(f"sub {reg_1=}, {reg_2=}, {reg_3=}")
+        if self.debug_mode: print(f"sub {reg_1=}, {reg_2=}, {reg_3=}")
         if reg_3 <= 1:
             print(f"Warning: attempted to subtract into register {reg_3} which is read-only.")
             return
@@ -201,10 +210,7 @@ class Computer:
 
     def cmp(self, reg_1, reg_2, comp_reg_data):
         comp_reg = comp_reg_data >> 11
-        print(f"compare {reg_1=}, {reg_2=}, {comp_reg=}")
-        if comp_reg <= 1:
-            print(f"Warning: attempted to compare into register {comp_reg} which is read-only.")
-            return
+        if self.debug_mode: print(f"compare {reg_1=}, {reg_2=}, {comp_reg=}")
         mask = ~Int(0b1 << comp_reg)
         value = Int(self.data_regs[reg_1] == self.data_regs[reg_2])
         self.comp_reg = (self.comp_reg & mask) | value << comp_reg
@@ -224,28 +230,5 @@ class Computer:
 
 
         
-c = Computer()
-# program = np.array([
-# 0b000011_00000_00000_0000000000000010,
-# 0b000001_00000_00000_0000000000000000,
-# 0b000100_00010_00000_0000000000000001,
-# 0b000101_00010_00000_0000000000010000,
-# 0b000100_00011_10001_1111111111111110,
-# 0b000100_00011_10101_1111111111111111,
-# 0b000100_00101_10001_0000000000000011,
-# 0b001001_00011_00101_01000_00000000000,
-#
-# ],dtype = Int)
 
-program = np.array([
-    0b000100_00010_10001_0000000000001111,
-    0b111111_00010_00000_0000000000000000,
-    0b001010_00010_00001_00010_00000000000,
-    0b000010_00010_00000_00011_00000000000,
-    0b000011_00011_01000_0000000000000011,
-    0b000001_00000_00000_0000000000000000,
-])
-c.set_memory_chunk(0,program)
-# c.set_debug_callbacks(df)
-c.execute()
 print(1)
