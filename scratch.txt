@@ -1,0 +1,2 @@
+
+- The opcode length will be 6. I am tasked with implementing an instruction set of 8 instructions, which would require 3 bits minimum. However, this will be extended. Additionally, I imagine that when designing the decoding circuitry, certain physical instruction layouts might make things easier. I designate the first two bits as a binary encoding of which part of the CPU is required for an instruction (memory access, ALU, branching/control) and the third, fourth, fifth and sixth as a binary further specification of the instruction to be performed.
