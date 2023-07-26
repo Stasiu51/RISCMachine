@@ -50,7 +50,7 @@ My specification is therefore as follows:
 | NOP | 000000 | Ignored
 | HALT | 000001 | Ignored
 | CMP | 000010 | ARG1 data register compared to ARG2 data register, if equal ARG3 status register set to 1 else 0. | 
-| JMP | 000011 | If status register ARG1 is 1, then add/subtract the value in bits 16-31 to the PC. Bit 13 specifies whether to add or subtract.|
+| JMP | 000011 | If status register ARG1 is equal to bit 11, then add/subtract the value in bits 16-31 to the PC. Bit 12 specifies whether to add or subtract.|
 | LOAD | 000100 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described above.
 | STORE |000101| Stores data register ARG1 into address in bits 16-31. Behaviour determined by flags in ARG2 as described above.|
 | ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register ARG3 |

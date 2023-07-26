@@ -1,44 +1,6 @@
 import numpy as np
 from typing import Dict, Callable
-Int, Array = np.uint32, np.ndarray #Type Alias
-ZERO, ONE, ONES, HALF_ONES, SIG_HALF_ONES = Int(0), Int(1), ~Int(0), Int((2<<15)-1), Int(((2<<15)-1)<<16)
-print(bin(HALF_ONES),bin(SIG_HALF_ONES))
-
-
-class Mask:
-    def __init__(self, mask, shift):
-        self.mask = Int(mask)
-        self.shift = Int(shift)
-
-    def get(self, var):
-        return (var & self.mask) >> self.shift
-    
-    def set(self, var, value):
-        return (var & ~self.mask) | (value << self.shift)
-
-N_DATA_REGISTERS = 32
-MEMORY_SIZE_DEFAULT = 2 << 16
-OPCODE_MASK = Mask(0b111111_00000_00000_0000000000000000,26)
-ARG1_MASK = Mask(0b000000_11111_00000_0000000000000000,21)
-ARG2_MASK = Mask(0b000000_00000_11111_0000000000000000, 16)
-DATA_MASK = Mask(0b000000_00000_00000_1111111111111111, 0)
-
-OPCODE_NOP = Int(0b000000)
-OPCODE_HALT = Int(0b000001)
-OPCODE_CMP = Int(0b000010)
-OPCODE_JMP = Int(0b000011)
-OPCODE_LOAD = Int(0b000100)
-OPCODE_STORE = Int(0b000101)
-OPCODE_ADD = Int(0b001001)
-OPCODE_SUB = Int(0b001010)
-OPCODE_DEBUG = Int(0b111111)
-
-RUNNING_FLAG_MASK = Mask(1,0)
-CARRY_FLAG_MASK = Mask(1,1)
-
-IMMEDIATE_LOAD_FLAG_MASK = Mask(0b10000,0)
-SIGNIFICANT_LOAD_FLAG_MASK = Mask(0b01000,0)
-OVERWRITE_LOAD_FLAG_MASK = Mask(0b00100,0)
+from constants import *
 
 class SegmentationFaultError(Exception):
     pass
@@ -58,9 +20,13 @@ class Computer:
         self.opcode_functions: Dict[Int, Callable] = {
             OPCODE_NOP: self.nop,
             OPCODE_HALT: self.halt,
-            OPCODE_DEBUG: self.debug,
+            OPCODE_PRINT: self.print,
             OPCODE_LOAD: self.load,
-            OPCODE_STORE: self.store
+            OPCODE_STORE: self.store,
+            OPCODE_JMP: self.jump,
+            OPCODE_ADD: self.add,
+            OPCODE_SUB: self.sub,
+            OPCODE_CMP: self.cmp
         }
         self.debug_callbacks = {ZERO: lambda arg1,arg2,data: print(
             f"Debug: {arg1=:05b},{arg2=:05b},{data=:016b}")} # Default debug print behaviour
@@ -124,44 +90,127 @@ class Computer:
         print("halt")
         # halt the computer
         self.status_reg = RUNNING_FLAG_MASK.set(self.status_reg, ZERO)
-    
-    def debug(self,arg1, arg2, data):
-        print(f"debug, {bin(arg1)}")
-        if arg1 not in self.debug_callbacks:
-            raise DecodingError(f"No matching debug callback for argument {arg1}.")
-        self.debug_callbacks[arg1](arg1,arg2,data)
+
+    def print(self, register_1, register_2, address):
+        if not 0 <= address < self.memory_size:
+            raise SegmentationFaultError(f"Attempted to print from address {address}, which is out of range.")
+        print(f"print: register {register_1}: {self.data_regs[register_1]:032b} = {self.data_regs[register_1]}, "
+              f"register {register_2}: {self.data_regs[register_2]:032b} = {self.data_regs[register_2]}, "
+              f"address {address}: {self.memory[address]:032b} = {self.memory[address]}")
 
     def load(self, register, control_flags, adrs_or_data):
         print(f"load {register}, {control_flags:05b}, {adrs_or_data}")
         if register <= 1:
-            print(f"Warning: attempted to write to read-only register {register}.")
+            print(f"Warning: attempted to load to register {register} which is read-only.")
             return
-        if not IMMEDIATE_LOAD_FLAG_MASK.get(control_flags):
-        # Load from memory
+        if IMMEDIATE_FLAG_MASK.get(control_flags): #Immediate mode, instruction itself is source
+            source_bits = self.memory[self.PC]
+        else: # Load from memory
             if not 0 <= adrs_or_data < self.memory_size:
                 raise SegmentationFaultError(f"Attempted to read from address {adrs_or_data}, which is out of range.")
-            self.data_regs[register] = self.memory[adrs_or_data]
+            source_bits = self.memory[adrs_or_data]
+
+        if not HALF_COPY_FLAG_MASK.get(control_flags): # moving all 32 bits
+            self.data_regs[register] = source_bits
             return
 
-        # Immediate Load from Instruction
-        if SIGNIFICANT_LOAD_FLAG_MASK.get(control_flags):
-            if OVERWRITE_LOAD_FLAG_MASK.get(control_flags):
-                self.data_regs[register] = adrs_or_data << 16
-            else:
-                self.data_regs[register] = (self.data_regs[control_flags] & HALF_ONES) | (adrs_or_data << 16)
+        # moving only 16 bits
+        if SIGNIFICANT_SRC_FLAG_MASK.get(control_flags):
+            half_source_bits = (SIG_HALF_ONES & source_bits) >> 16
         else:
-            if OVERWRITE_LOAD_FLAG_MASK.get(control_flags):
-                self.data_regs[register] = adrs_or_data
+            half_source_bits = HALF_ONES & source_bits
+
+        if SIGNIFICANT_DST_FLAG_MASK.get(control_flags):
+            if OVERWRITE_FLAG_MASK.get(control_flags):
+                self.data_regs[register] = (half_source_bits << 16) # Overwrite all the bits
             else:
-                print('wo')
-                self.data_regs[register] = (self.data_regs[register] & SIG_HALF_ONES) | adrs_or_data
+                self.data_regs[register] = (half_source_bits << 16) | (self.data_regs[register] & HALF_ONES) # Overwrite only the 16 affected bits
+        else:
+            if OVERWRITE_FLAG_MASK.get(control_flags):
+                self.data_regs[register] = half_source_bits
+            else:
+                self.data_regs[register] = half_source_bits | (self.data_regs[register] & SIG_HALF_ONES)
+
+    def store(self, register, control_flags, adrs_or_data):
+        print(f"store {register}, {control_flags:05b}, {adrs_or_data}")
+
+        if not 0 <= adrs_or_data < self.memory_size:
+            raise SegmentationFaultError(f"Attempted to write to address {adrs_or_data}, which is out of range.")
+
+        if IMMEDIATE_FLAG_MASK.get(control_flags):  # Immediate mode, instruction itself is source
+            source_bits = self.memory[self.PC]
+        else:  # Load from memory
+            source_bits = self.data_regs[register]
+
+        if not HALF_COPY_FLAG_MASK.get(control_flags):  # moving all 32 bits
+            self.memory[adrs_or_data] = source_bits
+            return
+
+        # moving only 16 bits
+        if SIGNIFICANT_SRC_FLAG_MASK.get(control_flags):
+            half_source_bits = (SIG_HALF_ONES & source_bits) >> 16
+        else:
+            half_source_bits = HALF_ONES & source_bits
+
+        if SIGNIFICANT_DST_FLAG_MASK.get(control_flags):
+            if OVERWRITE_FLAG_MASK.get(control_flags): # Overwrite all the bits
+                self.memory[adrs_or_data] = (half_source_bits << 16)
+            else: # Overwrite only the 16 affected bits
+                self.memory[adrs_or_data] = (half_source_bits << 16) | (self.data_regs[register] & HALF_ONES)
+        else:
+            if OVERWRITE_FLAG_MASK.get(control_flags):
+                self.memory[adrs_or_data] = half_source_bits
+            else:
+                self.memory[adrs_or_data] = half_source_bits | (self.data_regs[register] & SIG_HALF_ONES)
+
+    def jump(self, control_register, control_flags, jump_amount):
+        print(f"jump {control_register=}, {control_flags=:05b}, {jump_amount=}")
+        if (self.comp_reg >> control_register) & 1 == JUMP_CONDITION_FLAG.get(control_flags):
+            # subtract 1 for convenience as the computer will add one at the end of the cycle
+            new_PC = self.PC - jump_amount - 1 if JUMP_SUBTRACT_FLAG.get(control_flags) else self.PC + jump_amount - 1
+            if not 0 <= self.PC < self.memory_size:
+                raise SegmentationFaultError(f"Attempted to move program counter to {new_PC}, which is out of bounds.")
+            self.PC = new_PC
+
+    def add(self, reg_1, reg_2, reg_3_data):
+        reg_3 = reg_3_data >> 11
+        print(f"add {reg_1=}, {reg_2=}, {reg_3=}")
+        if reg_3 <= 1:
+            print(f"Warning: attempted to add into register {reg_3} which is read-only.")
+            return
+        if int(self.data_regs[reg_1]) + int(self.data_regs[reg_2]) >= 2<<31: # Overflow occurred.
+            print("Warning: integer overflow. Flag set.")
+            self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ONE)
+        else:
+            self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ZERO)
+        self.data_regs[reg_3] = self.data_regs[reg_1] + self.data_regs[reg_2]
 
 
-    def store(self, register, _, address):
-        print(f"store {register}, {address}")
-        if not 0 <= address < self.memory_size:
-            raise SegmentationFaultError(f"Attempted to write to address {address}, which is out of range.")
-        self.memory[address] = self.data_regs[register]
+    def sub(self, reg_1, reg_2, reg_3_data):
+        reg_3 = reg_3_data >> 11
+        print(f"sub {reg_1=}, {reg_2=}, {reg_3=}")
+        if reg_3 <= 1:
+            print(f"Warning: attempted to subtract into register {reg_3} which is read-only.")
+            return
+        if int(self.data_regs[reg_1]) - int(self.data_regs[reg_2]) < 0: # Underflow occurred.
+            print("Warning: integer underflow. Flag set.")
+            self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ONE)
+        else:
+            self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ZERO)
+        self.data_regs[reg_3] = self.data_regs[reg_1] - self.data_regs[reg_2]
+
+    def cmp(self, reg_1, reg_2, comp_reg_data):
+        comp_reg = comp_reg_data >> 11
+        print(f"compare {reg_1=}, {reg_2=}, {comp_reg=}")
+        if comp_reg <= 1:
+            print(f"Warning: attempted to compare into register {comp_reg} which is read-only.")
+            return
+        mask = ~Int(0b1 << comp_reg)
+        value = Int(self.data_regs[reg_1] == self.data_regs[reg_2])
+        self.comp_reg = (self.comp_reg & mask) | value << comp_reg
+
+
+
 
 
 
@@ -176,12 +225,26 @@ class Computer:
 
         
 c = Computer()
+# program = np.array([
+# 0b000011_00000_00000_0000000000000010,
+# 0b000001_00000_00000_0000000000000000,
+# 0b000100_00010_00000_0000000000000001,
+# 0b000101_00010_00000_0000000000010000,
+# 0b000100_00011_10001_1111111111111110,
+# 0b000100_00011_10101_1111111111111111,
+# 0b000100_00101_10001_0000000000000011,
+# 0b001001_00011_00101_01000_00000000000,
+#
+# ],dtype = Int)
+
 program = np.array([
-    0b000000_00000_00000_0000000000000000,
-    0b000100_00010_11000_0101010101010101,
-    0b000101_00010_00000_0000000000001000,
+    0b000100_00010_10001_0000000000001111,
+    0b111111_00010_00000_0000000000000000,
+    0b001010_00010_00001_00010_00000000000,
+    0b000010_00010_00000_00011_00000000000,
+    0b000011_00011_01000_0000000000000011,
     0b000001_00000_00000_0000000000000000,
-],dtype = Int)
+])
 c.set_memory_chunk(0,program)
 # c.set_debug_callbacks(df)
 c.execute()
