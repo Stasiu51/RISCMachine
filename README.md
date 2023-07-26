@@ -26,7 +26,7 @@ My specification is therefore as follows:
 
 - There are an additional 32 one-bit status registers, which I imagine in hardware would consist of a single 32-bit register with dedicated indexing or bit-shift logic.
 
-- From my research it seems both Von-Neumann and Harvard-model (seperate program and data memory) memory models have been used on RISC devices. Within the goals I have set myself, I can't see a big reason to use one over the other, but I'd much prefer the device to have a single memory as I think It will be fun to write programs that can change their own code. I will therefore adopt a Von-Neumann model, with the PC initialised to memory adress 0. It will be the programmer's reponsibility to avoid overwriting the program.
+- From my research it seems both Von-Neumann and Harvard-model (seperate program and data memory) memory models have been used on RISC devices. Within the goals I have set myself, I can't see a major reason to use one over the other, but I'd much prefer the device to have a single memory as I think It will be fun to write programs that can change their own code. I will therefore adopt a Von-Neumann model, with the PC initialised to memory adress 0. It will be the programmer's reponsibility to avoid overwriting the program.
 
 ## Language: Python
 
