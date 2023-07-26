@@ -18,7 +18,7 @@ My specification is therefore as follows:
 
 - I will use a 32-bit register size, and instruction length. This is an arbitrary choice as, as explained above, in this challenge I will imagine I am designing a physical device. It might well be the case that 32 bit instruction length is a constraint imposed by the circuitry available. It also adds some additional design constraints that make the challenge more fun, and is an homage to actual RISC devices of the 70s and 80s.
 
-- The opcode length will be 5. A minimum of 3 is required for the 8 requested instructions, but this leaves room for extension.
+- The opcode length will be 6. A minimum of 3 is required for the 8 requested instructions, but this leaves room for extension.
 
 - There will be 32 data registers. Of these, data register 0 will always read zero and data register 1 will always read one. Attempting to load into these registers is equivalent to a NOP. This is loosely inspired by the RISC-1 computer of 1981.
 
@@ -26,38 +26,37 @@ My specification is therefore as follows:
 
 - There are an additional 32 one-bit status registers, which I imagine in hardware would consist of a single 32-bit register with dedicated indexing or bit-shift logic.
 
-<<<<<<< HEAD
 - From my research it seems both Von-Neumann and Harvard-model (separate program and data memory) memory models have been used on RISC devices. Within the goals I have set myself, I can't see a big reason to use one over the other, but I'd much prefer the device to have a single memory as I think It will be fun to write programs that can change their own code. I will therefore adopt a Von-Neumann model, with the PC initialised to memory address 0. It will be the programmer's responsibility to avoid overwriting the program.
 
 ### Instruction format
 
-- Bits 0-4 - opcode broad
-- Bits 5-9 - register argument 1
+- Bits 0-5 - opcode 
+- Bits 6-10 - register argument 1
 - For an arithmetic/logical operations:
-    - Bits 10-14 - register argument 2
-    - Bits 15-20 - unused
-- For a memory access instruction: 
-    - Bit 13 is a flag to indicate immediate loading of a value into a register vs a memory address
-    - If loading in immediate mode, bit 14 indicates whether the 16 least significant or 16 most significant bits are to be overwritten with the 16 specified bits.
-    - If loading in immediate mode, bit 15 indicates whether the half of the register not being written to are zeroed or not.
-    - Bits 16-31 are either a memory address or 16 bits of an immediate value.
+    - Bits 11-15 - register argument 2
+    - Bits 16-20 - destination register
+    - Bits 20-31 - unused
+- For a memory access instruction bits 11-15 specify flags: 
+    - Bit 11 specifies whether the copy instruction should only copy 16 bits. If it is set:
+      - Bit 12 specifies whether the source bits should be the most or least significant 16 bits of the source memory address of register.
+      - Bit 13 specifies whether the source bits should be copied to the most or least significant 16 bits of the destination memory address or register.
+      - Bit 14 specifies if the other 16 bits in the destination memory address or register should be set to 0.
+    - Bit 15 specifies that the source of the bits to be copied is the instruction itself. Combined with the above options, this allows for the manipulation of memory addresses.
 
 ### Instruction list
 (Basic implementation)
-| Instruction | Opcode (Bits 0-4) | Arguments Bits (5-31 as above) |
+| Instruction | Opcode (Bits 0-5) | Arguments Bits (4-31 as above) |
 | -- | -- | --|
-| NOP | 00000 | Ignored
-| HALT | 00001 | Ignored
-| CMP | 00010 | ARG1 data register compared to ARG2 data register, if equal ARG3 status register set to 1 else 0. | 
-| JMP | 00011 | If status register ARG1 is 1, then add/subtract the value in bits 16-31 to the PC. Bit 13 specifies whether to add or subtract.|
-| LOAD | 00100 | Load value into data register ARG1. Bit 13 sets immediate mode. Out of immediate mode, takes a memory address in bits 16-31. In immediate mode bit 14 specifies 16 most significant or 16 least significant bits to overwrite, and bit 15 indicates whether the other half should be zeroed as well.
-| STORE |00101|  Stores data register ARG1 into address in bits 16-31
-| ADD | 01001 | Adds data registers ARG1 and ARG2, stores result in data register ARG3 |
-| SUB | 01010 | Subtracts data register ARG2 from ARG1, stores result in data register ARG3 |
+| NOP | 000000 | Ignored
+| HALT | 000001 | Ignored
+| CMP | 000010 | ARG1 data register compared to ARG2 data register, if equal ARG3 status register set to 1 else 0. | 
+| JMP | 000011 | If status register ARG1 is 1, then add/subtract the value in bits 16-31 to the PC. Bit 13 specifies whether to add or subtract.|
+| LOAD | 000100 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described above.
+| STORE |000101| Stores data register ARG1 into address in bits 16-31. Behaviour determined by flags in ARG2 as described above.|
+| ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register ARG3 |
+| SUB | 001010 | Subtracts data register ARG2 from ARG1, stores result in data register ARG3 |
+| DEBUG | 111111 | Calls the debug function numbered by ARG1 |
 
-=======
-- From my research it seems both Von-Neumann and Harvard-model (seperate program and data memory) memory models have been used on RISC devices. Within the goals I have set myself, I can't see a major reason to use one over the other, but I'd much prefer the device to have a single memory as I think It will be fun to write programs that can change their own code. I will therefore adopt a Von-Neumann model, with the PC initialised to memory adress 0. It will be the programmer's reponsibility to avoid overwriting the program.
->>>>>>> 394e316293543fc25c68803057a7351cbb386cd4
 
 ## Language: Python
 
