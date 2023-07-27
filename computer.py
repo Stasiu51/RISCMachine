@@ -1,3 +1,7 @@
+"""
+This file contains the implementation of the computer as per the specification in the README.
+"""
+
 import numpy as np
 from typing import Dict, Callable
 from constants import *
@@ -11,13 +15,20 @@ class DecodingError(Exception):
 
 class Computer:
     def __init__(self, memory_size = MEMORY_SIZE_DEFAULT):
+        # 32, 32-bit data registers
         self.data_regs = np.zeros(N_DATA_REGISTERS,dtype = Int)
+        # the second register is always one
         self.data_regs[1] = ONE
-        self.comp_reg = Int(0) # For the result of logical operations such as CMP
-        self.status_reg = Int(0) # For other status bits, such as `running' and carry flags
+        # COMP register, for the result of logical operations such as CMP
+        self.comp_reg = Int(0)
+        # Status register, for other status bits, such as `running' and overflow flags
+        self.status_reg = Int(0)
+        # Program counter
         self.PC = np.uint16(0)
+        # (Unified) Memory
         self.memory = np.zeros(memory_size, dtype = Int)
         self.memory_size = memory_size
+        # Functions to be called by the instructions
         self.opcode_functions: Dict[Int, Callable] = {
             OPCODE_NOP: self.nop,
             OPCODE_HALT: self.halt,
@@ -33,12 +44,18 @@ class Computer:
 
     @staticmethod
     def assemble_and_run(code, debug_mode = False):
+        """
+        Helper function to quickly run a program from assembly code
+        """
         computer = Computer()
         program_data = assemble(code)
         computer.set_memory_chunk(0, program_data)
         computer.execute(debug_mode = debug_mode)
     
     def set_memory_chunk(self, address, data):
+        """
+        Set a chunk of memory, useful for loading programs
+        """
         if not 0 <= address < self.memory_size:
             raise SegmentationFaultError("Address not within memory")
         if type(data) is not Array or data.dtype != Int:
@@ -47,13 +64,11 @@ class Computer:
             raise SegmentationFaultError("Data is too large for memory.")
         
         self.memory[address: address + data.size] = data
-
-    def set_debug_callbacks(self, debug_callbacks):
-        if type(debug_callbacks) is not dict:
-            raise TypeError("debug_callbacks should be a dictionary of functions indexed by uint32.")
-        self.debug_callbacks = debug_callbacks
     
     def set_memory_address(self, address, value):
+        """
+        Set a single address in memory, useful for loading program arguments
+        """
         if not 0 <= address < self.memory_size:
             raise SegmentationFaultError("Attempted to write to invalid address")
         if type(value) is not Int:
@@ -61,17 +76,27 @@ class Computer:
         self.memory[address] = value
     
     def get_memory_address(self, address) -> Int:
+        """
+        Get a single address in memory, useful for reading program outputs
+        """
         if not 0 <= address < self.memory_size:
             raise SegmentationFaultError("Attempted to write to invalid address")
         return self.memory[address]
 
     @staticmethod
     def decode(instruction):
+        """
+        Split an instruction into opcode and arguments
+        """
         return OPCODE_MASK.get(instruction), ARG1_MASK.get(instruction), \
             ARG2_MASK.get(instruction), DATA_MASK.get(instruction)
 
     def execute(self, debug_mode = False):
+        """
+        Main execution loop for running a program. Follows fetch-decode-execute cycle.
+        """
         self.debug_mode = debug_mode
+        # Set 'running' flag
         self.status_reg = RUNNING_FLAG_MASK.set(self.status_reg, ONE)
 
         while RUNNING_FLAG_MASK.get(self.status_reg):
@@ -90,18 +115,30 @@ class Computer:
 
             #Increase PC
             self.PC += 1 #Note that this will happen regardless of jump
+
+    #
     # Functions for instructions. Take the decoded arguments and return whether the computer should halt execution.
+    #
 
     def nop(self, arg1, arg2, data):
+        """
+        Do nothing.
+        """
         if self.debug_mode: print("nop")
         pass
      
     def halt(self, arg1, arg2, data):
+        """
+        Stop execution by resetting the 'running' flag.
+        """
         if self.debug_mode: print("halt")
         # halt the computer
         self.status_reg = RUNNING_FLAG_MASK.set(self.status_reg, ZERO)
 
     def print(self, register_1, register_2, address):
+        """
+        Print the contents of data registers with indices register_1, register_2 and the memory at the given address.
+        """
         if not 0 <= address < self.memory_size:
             raise SegmentationFaultError(f"Attempted to print from address {address}, which is out of range.")
         print(f"print: register {register_1}: {self.data_regs[register_1]:032b} = {self.data_regs[register_1]}, "
@@ -109,6 +146,10 @@ class Computer:
               f"address {address}: {self.memory[address]:032b} = {self.memory[address]}")
 
     def load(self, register, control_flags, adrs_or_data):
+        """
+        Load data from memory or the instruction itself into a data register.
+        For a complete description of the flags, see the README.
+        """
         if self.debug_mode: print(f"load {register}, {control_flags:05b}, {adrs_or_data}")
         if register <= 1:
             print(f"Warning: attempted to load to register {register} which is read-only.")
@@ -142,6 +183,10 @@ class Computer:
                 self.data_regs[register] = half_source_bits | (self.data_regs[register] & SIG_HALF_ONES)
 
     def store(self, register, control_flags, adrs_or_data):
+        """
+        Store data from a data register or the instruction itself into an address in memory.
+        For a complete description of the flags, see the README.
+        """
         if self.debug_mode: print(f"store {register}, {control_flags:05b}, {adrs_or_data}")
 
         if not 0 <= adrs_or_data < self.memory_size:
@@ -174,6 +219,9 @@ class Computer:
                 self.memory[adrs_or_data] = half_source_bits | (self.memory[adrs_or_data] & SIG_HALF_ONES)
 
     def jump(self, control_register, control_flags, jump_amount):
+        """
+        A conditional relative jump, performed by modifying the program counter.
+        """
         if self.debug_mode: print(f"jump {control_register=}, {control_flags=:05b}, {jump_amount=}")
         if (self.comp_reg >> control_register) & 1 == JUMP_CONDITION_FLAG.get(control_flags):
             # subtract 1 for convenience as the computer will add one at the end of the cycle
@@ -183,6 +231,10 @@ class Computer:
             self.PC = new_PC
 
     def add(self, reg_1, reg_2, reg_3_data):
+        """
+        Add the contents of reg_1 and the contents of reg_2 and store the result in reg_3.
+        In case of overflow, set the relevant status bit.
+        """
         reg_3 = reg_3_data >> 11
         if self.debug_mode: print(f"add {reg_1=}, {reg_2=}, {reg_3=}")
         if reg_3 <= 1:
@@ -197,6 +249,10 @@ class Computer:
 
 
     def sub(self, reg_1, reg_2, reg_3_data):
+        """
+        Subtract the contents of reg_2 from the contents of reg_1 and store the result in reg_3.
+        In case of underflow, set the relevant status bit.
+        """
         reg_3 = reg_3_data >> 11
         if self.debug_mode: print(f"sub {reg_1=}, {reg_2=}, {reg_3=}")
         if reg_3 <= 1:
@@ -210,6 +266,9 @@ class Computer:
         self.data_regs[reg_3] = self.data_regs[reg_1] - self.data_regs[reg_2]
 
     def comp(self, reg_1, reg_2, comp_reg_data):
+        """
+        Compare the contents of reg_2 and the contents of reg_1 and set the specified bit in the COMP_REG.
+        """
         comp_reg = comp_reg_data >> 11
         if self.debug_mode: print(f"compare {reg_1=}, {reg_2=}, {comp_reg=}")
         mask = ~Int(0b1 << comp_reg)

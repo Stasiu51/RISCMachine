@@ -474,7 +474,5 @@ class TestComputer(unittest.TestCase):
         self.assertEqual(0b1010, c.comp_reg)
 
 
-
-
 if __name__ == "__main__":
     unittest.main()
