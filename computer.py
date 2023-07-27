@@ -27,7 +27,7 @@ class Computer:
             OPCODE_JMP: self.jump,
             OPCODE_ADD: self.add,
             OPCODE_SUB: self.sub,
-            OPCODE_CMP: self.cmp
+            OPCODE_CMP: self.comp
         }
         self.debug_mode = False
 
@@ -41,9 +41,9 @@ class Computer:
     def set_memory_chunk(self, address, data):
         if not 0 <= address < self.memory_size:
             raise SegmentationFaultError("Address not within memory")
-        if type(data) is not Array:#or data.dtype != Int:
+        if type(data) is not Array or data.dtype != Int:
             raise TypeError("Program data should be a numpy array of type uint32")
-        if not 0 <= data.size < self.memory_size:
+        if not 0 <= address + data.size <= self.memory_size:
             raise SegmentationFaultError("Data is too large for memory.")
         
         self.memory[address: address + data.size] = data
@@ -60,11 +60,15 @@ class Computer:
             raise TypeError("Value should have type uint32")
         self.memory[address] = value
     
-    def read_memory_address(self, address) -> Int:
+    def get_memory_address(self, address) -> Int:
         if not 0 <= address < self.memory_size:
             raise SegmentationFaultError("Attempted to write to invalid address")
         return self.memory[address]
 
+    @staticmethod
+    def decode(instruction):
+        return OPCODE_MASK.get(instruction), ARG1_MASK.get(instruction), \
+            ARG2_MASK.get(instruction), DATA_MASK.get(instruction)
 
     def execute(self, debug_mode = False):
         self.debug_mode = debug_mode
@@ -72,23 +76,20 @@ class Computer:
 
         while RUNNING_FLAG_MASK.get(self.status_reg):
             #Fetch
+            if not 0 <= self.PC < self.memory_size:
+                raise SegmentationFaultError(f"Attempted to load instruction from address {self.PC}, which is out of bounds.")
             instruction = self.memory[self.PC]
 
             #Decode
-            opcode = OPCODE_MASK.get(instruction)
-            arg1 = ARG1_MASK.get(instruction)
-            arg2 = ARG2_MASK.get(instruction)
-            data = DATA_MASK.get(instruction)
+            opcode, arg1, arg2, data = Computer.decode(instruction)
             if not opcode in self.opcode_functions:
                 raise DecodingError(f"Invalid opcode: {bin(opcode)}.")
 
             #Execute
-            if self.opcode_functions[opcode](arg1, arg2, data):
-                return
+            self.opcode_functions[opcode](arg1, arg2, data)
 
             #Increase PC
             self.PC += 1 #Note that this will happen regardless of jump
-
     # Functions for instructions. Take the decoded arguments and return whether the computer should halt execution.
 
     def nop(self, arg1, arg2, data):
@@ -187,7 +188,7 @@ class Computer:
         if reg_3 <= 1:
             print(f"Warning: attempted to add into register {reg_3} which is read-only.")
             return
-        if int(self.data_regs[reg_1]) + int(self.data_regs[reg_2]) >= 2<<31: # Overflow occurred.
+        if int(self.data_regs[reg_1]) + int(self.data_regs[reg_2]) >= 1<<32: # Overflow occurred.
             print("Warning: integer overflow. Flag set.")
             self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ONE)
         else:
@@ -208,7 +209,7 @@ class Computer:
             self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ZERO)
         self.data_regs[reg_3] = self.data_regs[reg_1] - self.data_regs[reg_2]
 
-    def cmp(self, reg_1, reg_2, comp_reg_data):
+    def comp(self, reg_1, reg_2, comp_reg_data):
         comp_reg = comp_reg_data >> 11
         if self.debug_mode: print(f"compare {reg_1=}, {reg_2=}, {comp_reg=}")
         mask = ~Int(0b1 << comp_reg)

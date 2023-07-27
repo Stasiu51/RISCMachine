@@ -1,6 +1,6 @@
 from numpy import uint32 as Int
 from numpy import ndarray as Array
-ZERO, ONE, ONES, HALF_ONES, SIG_HALF_ONES = Int(0), Int(1), ~Int(0), Int((2<<15)-1), Int(((2<<15)-1)<<16)
+ZERO, ONE, ONES, HALF_ONES, SIG_HALF_ONES = Int(0), Int(1), ~Int(0), Int((1<<16)-1), Int(((1<<16)-1)<<16)
 
 class Mask:
     def __init__(self, mask, shift):
@@ -15,7 +15,7 @@ class Mask:
 
 
 N_DATA_REGISTERS = 32
-MEMORY_SIZE_DEFAULT = 2 << 16
+MEMORY_SIZE_DEFAULT = 1 << 16
 OPCODE_MASK = Mask(0b111111_00000_00000_0000000000000000, 26)
 ARG1_MASK = Mask(0b000000_11111_00000_0000000000000000, 21)
 ARG2_MASK = Mask(0b000000_00000_11111_0000000000000000, 16)
