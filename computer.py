@@ -7,16 +7,19 @@ from typing import Dict, Callable
 from constants import *
 from assembler import assemble
 
+
 class SegmentationFaultError(Exception):
     pass
+
 
 class DecodingError(Exception):
     pass
 
+
 class Computer:
-    def __init__(self, memory_size = MEMORY_SIZE_DEFAULT):
+    def __init__(self, memory_size=MEMORY_SIZE_DEFAULT):
         # 32, 32-bit data registers
-        self.data_regs = np.zeros(N_DATA_REGISTERS,dtype = Int)
+        self.data_regs = np.zeros(N_DATA_REGISTERS, dtype=Int)
         # the second register is always one
         self.data_regs[1] = ONE
         # COMP register, for the result of logical operations such as CMP
@@ -26,7 +29,7 @@ class Computer:
         # Program counter
         self.PC = np.uint16(0)
         # (Unified) Memory
-        self.memory = np.zeros(memory_size, dtype = Int)
+        self.memory = Memory(memory_size)
         self.memory_size = memory_size
         # Functions to be called by the instructions
         self.opcode_functions: Dict[Int, Callable] = {
@@ -43,15 +46,15 @@ class Computer:
         self.debug_mode = False
 
     @staticmethod
-    def assemble_and_run(code, debug_mode = False):
+    def assemble_and_run(code, debug_mode=False):
         """
         Helper function to quickly run a program from assembly code
         """
         computer = Computer()
         program_data = assemble(code)
         computer.set_memory_chunk(0, program_data)
-        computer.execute(debug_mode = debug_mode)
-    
+        computer.execute(debug_mode=debug_mode)
+
     def set_memory_chunk(self, address, data):
         """
         Set a chunk of memory, useful for loading programs
@@ -62,9 +65,9 @@ class Computer:
             raise TypeError("Program data should be a numpy array of type uint32")
         if not 0 <= address + data.size <= self.memory_size:
             raise SegmentationFaultError("Data is too large for memory.")
-        
+
         self.memory[address: address + data.size] = data
-    
+
     def set_memory_address(self, address, value):
         """
         Set a single address in memory, useful for loading program arguments
@@ -74,7 +77,7 @@ class Computer:
         if type(value) is not Int:
             raise TypeError("Value should have type uint32")
         self.memory[address] = value
-    
+
     def get_memory_address(self, address) -> Int:
         """
         Get a single address in memory, useful for reading program outputs
@@ -91,7 +94,7 @@ class Computer:
         return OPCODE_MASK.get(instruction), ARG1_MASK.get(instruction), \
             ARG2_MASK.get(instruction), DATA_MASK.get(instruction)
 
-    def execute(self, debug_mode = False):
+    def execute(self, debug_mode=False):
         """
         Main execution loop for running a program. Follows fetch-decode-execute cycle.
         """
@@ -100,21 +103,22 @@ class Computer:
         self.status_reg = RUNNING_FLAG_MASK.set(self.status_reg, ONE)
 
         while RUNNING_FLAG_MASK.get(self.status_reg):
-            #Fetch
+            # Fetch
             if not 0 <= self.PC < self.memory_size:
-                raise SegmentationFaultError(f"Attempted to load instruction from address {self.PC}, which is out of bounds.")
+                raise SegmentationFaultError(
+                    f"Attempted to load instruction from address {self.PC}, which is out of bounds.")
             instruction = self.memory[self.PC]
 
-            #Decode
+            # Decode
             opcode, arg1, arg2, data = Computer.decode(instruction)
             if not opcode in self.opcode_functions:
                 raise DecodingError(f"Invalid opcode: {bin(opcode)}.")
 
-            #Execute
+            # Execute
             self.opcode_functions[opcode](arg1, arg2, data)
 
-            #Increase PC
-            self.PC += 1 #Note that this will happen regardless of jump
+            # Increase PC
+            self.PC += 1  # Note that this will happen regardless of jump
 
     #
     # Functions for instructions. Take the decoded arguments and return whether the computer should halt execution.
@@ -126,7 +130,7 @@ class Computer:
         """
         if self.debug_mode: print("nop")
         pass
-     
+
     def halt(self, arg1, arg2, data):
         """
         Stop execution by resetting the 'running' flag.
@@ -154,14 +158,14 @@ class Computer:
         if register <= 1:
             print(f"Warning: attempted to load to register {register} which is read-only.")
             return
-        if IMMEDIATE_FLAG_MASK.get(control_flags): #Immediate mode, instruction itself is source
+        if IMMEDIATE_FLAG_MASK.get(control_flags):  # Immediate mode, instruction itself is source
             source_bits = self.memory[self.PC]
-        else: # Load from memory
+        else:  # Load from memory
             if not 0 <= adrs_or_data < self.memory_size:
                 raise SegmentationFaultError(f"Attempted to read from address {adrs_or_data}, which is out of range.")
             source_bits = self.memory[adrs_or_data]
 
-        if not HALF_COPY_FLAG_MASK.get(control_flags): # moving all 32 bits
+        if not HALF_COPY_FLAG_MASK.get(control_flags):  # moving all 32 bits
             self.data_regs[register] = source_bits
             return
 
@@ -173,14 +177,15 @@ class Computer:
 
         if SIGNIFICANT_DST_FLAG_MASK.get(control_flags):
             if OVERWRITE_FLAG_MASK.get(control_flags):
-                self.data_regs[register] = (half_source_bits << 16) # Overwrite all the bits
+                self.data_regs[register] = Int(half_source_bits << 16)  # Overwrite all the bits
             else:
-                self.data_regs[register] = (half_source_bits << 16) | (self.data_regs[register] & HALF_ONES) # Overwrite only the 16 affected bits
+                # Overwrite only the 16 affected bits
+                self.data_regs[register] = Int((half_source_bits << 16) | (self.data_regs[register] & HALF_ONES))
         else:
             if OVERWRITE_FLAG_MASK.get(control_flags):
-                self.data_regs[register] = half_source_bits
+                self.data_regs[register] = Int(half_source_bits)
             else:
-                self.data_regs[register] = half_source_bits | (self.data_regs[register] & SIG_HALF_ONES)
+                self.data_regs[register] = Int(half_source_bits | (self.data_regs[register] & SIG_HALF_ONES))
 
     def store(self, register, control_flags, adrs_or_data):
         """
@@ -208,15 +213,15 @@ class Computer:
             half_source_bits = HALF_ONES & source_bits
 
         if SIGNIFICANT_DST_FLAG_MASK.get(control_flags):
-            if OVERWRITE_FLAG_MASK.get(control_flags): # Overwrite all the bits
-                self.memory[adrs_or_data] = (half_source_bits << 16)
-            else: # Overwrite only the 16 affected bits
-                self.memory[adrs_or_data] = (half_source_bits << 16) | (self.memory[adrs_or_data] & HALF_ONES)
+            if OVERWRITE_FLAG_MASK.get(control_flags):  # Overwrite all the bits
+                self.memory[adrs_or_data] = Int(half_source_bits << 16)
+            else:  # Overwrite only the 16 affected bits
+                self.memory[adrs_or_data] = Int((half_source_bits << 16) | (self.memory[adrs_or_data] & HALF_ONES))
         else:
             if OVERWRITE_FLAG_MASK.get(control_flags):
-                self.memory[adrs_or_data] = half_source_bits
+                self.memory[adrs_or_data] = Int(half_source_bits)
             else:
-                self.memory[adrs_or_data] = half_source_bits | (self.memory[adrs_or_data] & SIG_HALF_ONES)
+                self.memory[adrs_or_data] = Int(half_source_bits | (self.memory[adrs_or_data] & SIG_HALF_ONES))
 
     def jump(self, control_register, control_flags, jump_amount):
         """
@@ -240,13 +245,12 @@ class Computer:
         if reg_3 <= 1:
             print(f"Warning: attempted to add into register {reg_3} which is read-only.")
             return
-        if int(self.data_regs[reg_1]) + int(self.data_regs[reg_2]) >= 1<<32: # Overflow occurred.
+        if int(self.data_regs[reg_1]) + int(self.data_regs[reg_2]) >= 1 << 32:  # Overflow occurred.
             print("Warning: integer overflow. Flag set.")
             self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ONE)
         else:
             self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ZERO)
         self.data_regs[reg_3] = self.data_regs[reg_1] + self.data_regs[reg_2]
-
 
     def sub(self, reg_1, reg_2, reg_3_data):
         """
@@ -258,7 +262,7 @@ class Computer:
         if reg_3 <= 1:
             print(f"Warning: attempted to subtract into register {reg_3} which is read-only.")
             return
-        if int(self.data_regs[reg_1]) - int(self.data_regs[reg_2]) < 0: # Underflow occurred.
+        if int(self.data_regs[reg_1]) - int(self.data_regs[reg_2]) < 0:  # Underflow occurred.
             print("Warning: integer underflow. Flag set.")
             self.status_reg = OVERFLOW_FLAG_MASK.set(self.status_reg, ONE)
         else:
@@ -274,3 +278,101 @@ class Computer:
         mask = ~Int(0b1 << comp_reg)
         value = Int(self.data_regs[reg_1] == self.data_regs[reg_2])
         self.comp_reg = (self.comp_reg & mask) | value << comp_reg
+
+def get_bit(x, n):
+    return (x >> n) & 1
+
+def set_bit(x, n, val):
+    if not (val == 0 or val == 1):
+        raise ValueError("val must be 0 or 1")
+    return (~(1 << n) & x) | (val << n)
+
+class Memory:
+    """
+    Memory class: basically a wrapper around a numpy array which allows for some custom behaviour.
+    Methods are self-explanatory with just some bounds and type checking.
+    """
+
+    def __init__(self, memory_size):
+        if not 2 <= memory_size <= (1 << 16):
+            raise ValueError(f"Invalid memory size {memory_size}. Must be between 2 and 65536")
+        self.size = memory_size
+        self.cache_size = CACHE_SIZE
+
+        self._array = np.zeros(memory_size, dtype=Int)
+        self._cache = np.zeros(CACHE_SIZE, dtype = Int)
+        self._cache_addresses = -1 * np.ones(CACHE_SIZE, dtype = int)
+        self._cache_tree_pointer = ZERO
+        self._array[1] = ONE
+
+    def __getitem__(self, address):
+        if type(address) is slice:
+            # Slice logic: to work with caches: make these a series of single accesses
+            start, stop = address.start or 0, address.stop or self.size
+            return_array = np.zeros((stop - start), dtype = Int)
+            for i, adr in enumerate(range(start, stop)):
+                return_array[i] = self.__getitem__(adr)
+            return return_array
+
+        # Normal lookup
+        if not 0 <= address < self.size:
+            raise SegmentationFaultError(
+                f"Attempted to access address {address}, which is out of bounds (max {self.size}).")
+
+        cache_index = self.cache_lookup(address)
+        self._cache[cache_index] = self
+
+    def __setitem__(self, address, value):
+        if type(address) is slice:
+            # Slice logic: to work with caches: make these a series of single accesses
+            start, stop = address.start or 0, address.stop or self.size # to convert slice into range
+            if type(value) is Array:
+                if value.size != (stop - start):
+                    raise ValueError("Value must be an array of same length as the slice.")
+                for adr, val in zip(range(start, stop), value):
+                    self.__setitem__(adr,val)
+            else: # single value set
+                for adr in range(start,stop):
+                    self.__setitem__(adr, value)
+            return
+
+
+        # Single access: error checking
+        if not 0 <= address < self.size:
+            raise SegmentationFaultError(
+                f"Attempted to access address {address}, which is out of bounds (max {self.size}).")
+        if type(value) is not Int:
+            raise TypeError("Type of value when setting memory should be uint32.")
+
+        self._array[address] = value
+        return
+        path = self.cache_lookup(address)
+        self._cache_addresses[path] = value
+    #
+    def cache_lookup(self, address):
+        if address in self._cache_addresses:
+            # move up the tree, flipping bits
+            cache_pos = np.where(self._cache_addresses == address)[0][0]
+            cache_pos
+            ###TODO
+        else:
+            # move down the tree along the path, flipping bits along the way
+            path = 0
+            while path < self.cache_size - 1:
+                self._cache_tree_pointer ^= (1 << path)
+                path = path*2 + 2 - get_bit(self._cache_tree_pointer, path)
+            path -= self.cache_size - 1
+
+            # put whatever is there back into main memory
+            self._array[self._cache_addresses[path]] = self._cache[path]
+
+            # update address
+            self._cache_addresses[path] = address
+            return path, False
+
+
+
+
+
+
+

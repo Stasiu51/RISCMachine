@@ -23,6 +23,7 @@ Address 63: (Sentinel) 0b1111....11111
 The goal of the program is to find and return the value of the final element in the linked list, which is 11.
 """
 
+import unittest
 from computer import Computer, Int
 from assembler import assemble
 
@@ -61,29 +62,30 @@ STORE 5 101
 HALT
 """
 
-# Assemble the code
-program = assemble(code)
 
-# Set up the computer and store the linked list in the memory
-c = Computer()
-address = 50
-elements = [(2,60),(3,56),(5,62),(7,81),(11,(1<<32) - 1)]
-for value, next_address in elements:
-    c.set_memory_address(address, Int(value))
-    c.set_memory_address(address + 1, Int(next_address))
-    address = next_address
+class TestLinkedList(unittest.TestCase):
+    def test_linked_list(self):
+        # Assemble the code
+        program = assemble(code)
 
-# Load the program
-c.set_memory_chunk(0,program)
+        # Set up the computer and store the linked list in the memory
+        c = Computer()
+        address = 50
+        elements = [(2, 60), (3, 56), (5, 62), (7, 81), (11, (1 << 32) - 1)]
+        for value, next_address in elements:
+            c.set_memory_address(address, Int(value))
+            c.set_memory_address(address + 1, Int(next_address))
+            address = next_address
 
-# Provide the first address to the program as an argument
-c.set_memory_address(100,Int(50))
+        # Load the program
+        c.set_memory_chunk(0, program)
 
-c.execute(debug_mode=True)
+        # Provide the first address to the program as an argument
+        c.set_memory_address(100, Int(50))
 
-# Get the result
-result = c.get_memory_address(101)
-print(f"Result is {result}.")
+        c.execute(debug_mode=True)
 
+        # Get the result
+        result = c.get_memory_address(101)
 
-
+        self.assertEqual(11, result)
