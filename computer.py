@@ -166,19 +166,19 @@ class Computer:
             if OVERWRITE_FLAG_MASK.get(control_flags): # Overwrite all the bits
                 self.memory[adrs_or_data] = (half_source_bits << 16)
             else: # Overwrite only the 16 affected bits
-                self.memory[adrs_or_data] = (half_source_bits << 16) | (self.data_regs[register] & HALF_ONES)
+                self.memory[adrs_or_data] = (half_source_bits << 16) | (self.memory[adrs_or_data] & HALF_ONES)
         else:
             if OVERWRITE_FLAG_MASK.get(control_flags):
                 self.memory[adrs_or_data] = half_source_bits
             else:
-                self.memory[adrs_or_data] = half_source_bits | (self.data_regs[register] & SIG_HALF_ONES)
+                self.memory[adrs_or_data] = half_source_bits | (self.memory[adrs_or_data] & SIG_HALF_ONES)
 
     def jump(self, control_register, control_flags, jump_amount):
         if self.debug_mode: print(f"jump {control_register=}, {control_flags=:05b}, {jump_amount=}")
         if (self.comp_reg >> control_register) & 1 == JUMP_CONDITION_FLAG.get(control_flags):
             # subtract 1 for convenience as the computer will add one at the end of the cycle
             new_PC = self.PC - jump_amount - 1 if JUMP_SUBTRACT_FLAG.get(control_flags) else self.PC + jump_amount - 1
-            if not 0 <= self.PC < self.memory_size:
+            if not 0 <= new_PC < self.memory_size:
                 raise SegmentationFaultError(f"Attempted to move program counter to {new_PC}, which is out of bounds.")
             self.PC = new_PC
 
@@ -215,21 +215,3 @@ class Computer:
         mask = ~Int(0b1 << comp_reg)
         value = Int(self.data_regs[reg_1] == self.data_regs[reg_2])
         self.comp_reg = (self.comp_reg & mask) | value << comp_reg
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-print(1)
