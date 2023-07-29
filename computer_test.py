@@ -1,4 +1,4 @@
-import io, sys, mock, unittest
+import io, sys, mock, unittest, bitarray
 from mock import patch, DEFAULT
 
 import numpy as np
@@ -7,9 +7,10 @@ Int = np.uint32
 
 import computer, constants
 
-# Import and run integration tests
+# Import and run other tests, including example programs
 from fibonacci_program import TestFibonacci
 from linked_list_program import TestLinkedList
+from cache_test import TestCache
 
 
 class TestComputer(unittest.TestCase):
@@ -349,10 +350,10 @@ class TestComputer(unittest.TestCase):
         Test that halt resets the 'running' flag
         """
         c = computer.Computer()
-        c.status_reg |= 1
+        c.status_reg[constants.RUNNING_FLAG_INDEX] = True
         c.halt(Int(0), Int(0), Int(0))
 
-        self.assertEqual(c.status_reg, Int(0))
+        self.assertEqual(False, c.status_reg[constants.RUNNING_FLAG_INDEX])
 
     def test_add(self):
         """
@@ -369,18 +370,18 @@ class TestComputer(unittest.TestCase):
 
         c.add(REG1, REG2, REG3 << 11)
         self.assertEqual(expected, c.data_regs[REG3])
-        self.assertEqual(0, constants.OVERFLOW_FLAG_MASK.get(c.status_reg))
+        self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Also test that it can add in-place
         c.add(REG1, REG2, REG2 << 11)
         self.assertEqual(expected, c.data_regs[REG2])
-        self.assertEqual(0, constants.OVERFLOW_FLAG_MASK.get(c.status_reg))
+        self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Test overflow behaviour
         c.data_regs[REG1] = Int((1 << 32) - 1)
         c.data_regs[REG2] = Int(1)
         c.add(REG1, REG2, REG3 << 11)
-        self.assertEqual(1, constants.OVERFLOW_FLAG_MASK.get(c.status_reg))
+        self.assertEqual(1, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
     def test_sub(self):
         """
@@ -397,16 +398,16 @@ class TestComputer(unittest.TestCase):
 
         c.sub(REG1, REG2, REG3 << 11)
         self.assertEqual(expected, c.data_regs[REG3])
-        self.assertEqual(0, constants.OVERFLOW_FLAG_MASK.get(c.status_reg))
+        self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Also test that it subtract in-place
         c.sub(REG1, REG2, REG2 << 11)
         self.assertEqual(expected, c.data_regs[REG2])
-        self.assertEqual(0, constants.OVERFLOW_FLAG_MASK.get(c.status_reg))
+        self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Test underflow behaviour
         c.sub(REG2, REG1, REG3 << 11)
-        self.assertEqual(1, constants.OVERFLOW_FLAG_MASK.get(c.status_reg))
+        self.assertEqual(1, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
     def test_jump(self):
         """
@@ -430,13 +431,12 @@ class TestComputer(unittest.TestCase):
         self.assertEqual(5, c.PC)
 
         # ...but do when it is set
-        c.comp_reg |= 1 << 5
+        c.comp_reg[5] = True
         c.PC = 5
         c.jump(5, 0b10000, 3)
         self.assertEqual(7, c.PC)
 
         # test subtract again
-        c.comp_reg |= 1 << 5
         c.PC = 5
         c.jump(5, 0b11000, 3)
         self.assertEqual(1, c.PC)
@@ -465,36 +465,29 @@ class TestComputer(unittest.TestCase):
 
         a, b = 10, 15
         REG1, REG2, REG3 = 2, 3, 4
-        c.data_regs[[REG1, REG2, REG3]] = a, a, b
+        c.data_regs[REG1] = a
+        c.data_regs[REG2] = a
+        c.data_regs[REG3] = b
+        expected = bitarray.bitarray('0'*32, endian = 'little')
 
         # These two are the same
         c.comp(REG1, REG2, 3 << 11)
-        self.assertEqual(0b1000, c.comp_reg)
+        expected[3] = True
+        self.assertEqual(expected, c.comp_reg)
 
-        # These are the same
+        # These are different
         c.comp(REG1, REG3, 1 << 11)
-        self.assertEqual(0b1000, c.comp_reg)
+        self.assertEqual(expected, c.comp_reg)
 
         # Comparing register to itself should also work
         c.comp(REG3, REG3, 1 << 11)
-        self.assertEqual(0b1010, c.comp_reg)
+        expected[1] = True
+        self.assertEqual(expected, c.comp_reg)
 
         ##### Extensions
 
-    def test_cache(self):
-        c = computer.Computer()
-        c.memory[:16] = np.arange(16, dtype = Int)
-        print(c.memory._cache)
-        c.memory[0]
-        print(c.memory._cache)
-        c.memory[1]
-        print(c.memory._cache)
-        c.memory[2]
-        print(c.memory._cache)
-        c.memory[3]
-        print(c.memory._cache)
-        c.memory[4]
-        print(c.memory._cache)
+
+
 
 if __name__ == "__main__":
     unittest.main()

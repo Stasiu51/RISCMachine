@@ -8,17 +8,21 @@ Obviously, a RISC machine is not a useful tool for calculation when it is a simu
 - Actual memory usage on the host device (this is quite easy to get close to optimal I think)
 - Available memory/program size of simulated device
 
-Optimising for these three metrics is an exercise in standard program optimisation and I suspect somewhat misses the purpose of this challenge. I think a more interesting approach is to imagine that the design of the computer specified here represents the design of a physical RISC CPU, and that the programmatic implementation to some extent is a simulation of the calculations performed on the device. The challenge is then to consider a design specification that would be suitable for a RISC device and implement its function, even where this gives rise to complexities that will provide no actual advantage in terms of the three metrics listed above. Where I have a choice, I will make arbitrary decisions based on my own sense of 'mechanical aesthetic'. I will also try to program the simulation efficiently.
+Optimising for these three metrics is an exercise in standard program optimisation and I suspect somewhat misses the purpose of this challenge. I think a more interesting approach is to imagine that the design of the computer specified here represents the design of a physical RISC CPU, and that the programmatic implementation to some extent is a simulation of the calculations performed on the device. The challenge is then to consider a design specification that would be suitable for a RISC device and implement its function, even where this gives rise to complexities that will provide no actual advantage in terms of the three metrics listed above. Where I have a choice, I will make arbitrary decisions based on my own sense of 'mechanical aesthetic'. I will also try, where possible, to program the simulation in an efficient way.
 
 ## Design Constraints - RISC advantages
 
 The key aim when designing a RISC computer is to keep the per-instruction times as low as possible (this *reduced* complexity of each instruction is the namesake of the concept, rather than the smaller number of available instructions). The idea is that along with intelligent compiling, this will outweigh the advantage of having a more versatile instruction set, where individual instructions may take many cycles to execute. As far as possible, one should aim for a one-CPU-cycle-per-intruction execution. I am not familiar with CPU design, but it seems that having a fixed instruction length, within which there is a fixed opcode length, and generally consistent structuring of the instructions, helps when designing the circuitry to be pipelined.
 
+## Design goals
+
+The chip I will be designing is a small general purpose microprocessor, similar in capacity to an arduino UNO. 
+
 My specification is therefore as follows:
 
 - I will use a 32-bit register size, and instruction length. This is an arbitrary choice as, as explained above, in this challenge I will imagine I am designing a physical device. It might well be the case that 32 bit instruction length is a constraint imposed by the circuitry available. It also adds some additional design constraints that make the challenge more fun, and is an homage to actual RISC devices of the 70s and 80s.
 
-- The opcode length will be 6. A minimum of 3 is required for the 8 requested instructions, but this leaves room for extension.
+- Addresses will be 16-bit. This leads to a maximum of 262kB of memory, which is sufficient for basic microprocessor tasks. The advantage of 16-bit addresses is that they take up half of one instruction, which allows for interesting manipulation techniques (see later).
 
 - There will be 32 data registers. Of these, data register 0 will always read zero and data register 1 will always read one. Attempting to load into these registers is equivalent to a NOP. This is loosely inspired by the RISC-1 computer of 1981.
 
@@ -28,20 +32,20 @@ My specification is therefore as follows:
 
 - From my research it seems both Von-Neumann and Harvard-model (separate program and data memory) memory models have been used on RISC devices. Within the goals I have set myself, I can't see a big reason to use one over the other, but I'd much prefer the device to have a single memory as I think It will be fun to write programs that can change their own code. I will therefore adopt a Von-Neumann model, with the PC initialised to memory address 0. It will be the programmer's responsibility to avoid overwriting the program.
 
+- The opcode length will be 6. A minimum of 3 is required for the 8 requested instructions, but this leaves room for extension.
+
 ### Instruction format
 
 - Bits 0-5 - opcode 
 - Bits 6-10 - register argument 1
-- For an arithmetic/logical operations:
-    - Bits 11-15 - register argument 2
-    - Bits 16-20 - destination register
-    - Bits 20-31 - unused
-- For a memory access instruction bits 11-15 specify flags: 
-    - Bit 11 specifies whether the copy instruction should only copy 16 bits. If it is set:
-      - Bit 12 specifies whether the source bits should be the most or least significant 16 bits of the source memory address of register.
-      - Bit 13 specifies whether the source bits should be copied to the most or least significant 16 bits of the destination memory address or register.
-      - Bit 14 specifies if the other 16 bits in the destination memory address or register should be set to 0.
-    - Bit 15 specifies that the source of the bits to be copied is the instruction itself. Combined with the above options, this allows for the manipulation of memory addresses.
+- Bits 11-15 - either the second register argument (in the case of arithmetic or logic operations) or a set of flags that are immediately loaded into an internal register to further specify the behaviour of an instruction:
+  - For a memory access instruction bits 11-15 specify flags: 
+      - Bit 11 specifies whether the copy instruction should only copy 16 bits. If it is set:
+        - Bit 12 specifies whether the source bits should be the most or least significant 16 bits of the source memory address of register.
+        - Bit 13 specifies whether the source bits should be copied to the most or least significant 16 bits of the destination memory address or register.
+        - Bit 14 specifies if the other 16 bits in the destination memory address or register should be set to 0.
+      - Bit 15 specifies that the source of the bits to be copied is the instruction itself. Combined with the above options, this allows for the manipulation of memory addresses.
+  - For a jump instruction bit 11 specifies whether the jump should be conditional on a 0 or 1 state of the specified bit in the COMP register, and bit 12 specifies whether the jump should increment or decrement the program counter.
 
 ### Instruction list
 (Basic implementation)
