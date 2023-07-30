@@ -1,7 +1,6 @@
 bitarray==2.8.0
 colorama==0.4.6
 iniconfig==2.0.0
-mock==5.1.0
 numpy==1.25.1
 packaging==23.1
 pluggy==1.2.0

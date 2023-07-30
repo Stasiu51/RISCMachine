@@ -5,8 +5,8 @@ This does not constitute a thorough testing of all the edge-cases of the cache s
 
 import unittest
 
-import computer
-from constants import *
+from computer_core import computer
+from computer_core.constants import *
 
 
 class TestCache(unittest.TestCase):

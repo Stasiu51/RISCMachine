@@ -3,7 +3,7 @@ from math import ceil
 import numpy as np
 from bitarray import bitarray
 
-from constants import *
+from computer_core.constants import *
 
 class Memory:
     """

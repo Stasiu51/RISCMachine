@@ -1,21 +1,21 @@
-import io, sys, mock, unittest, bitarray
-from mock import DEFAULT
+import io, sys, unittest, bitarray
+from unittest.mock import patch
 import numpy as np
 Int = np.uint32
-import computer, constants
+from computer_core import constants, computer
+from computer_core import instructions
 
 class TestComputer(unittest.TestCase):
 
-    @mock.patch.multiple('computer.Computer',
-                         nop=DEFAULT,
-                         add=DEFAULT,
-                         sub=DEFAULT,
-                         load=DEFAULT,
-                         store=DEFAULT,
-                         comp=DEFAULT,
-                         jump=DEFAULT,
-                         halt=DEFAULT, )
-    def test_execute(self, nop, add, sub, load, store, comp, jump, halt):
+    @patch.object(instructions.Halt, "execute_on")
+    @patch.object(instructions.Jump, "execute_on")
+    @patch.object(instructions.Comp, "execute_on")
+    @patch.object(instructions.Store, "execute_on")
+    @patch.object(instructions.Load, "execute_on")
+    @patch.object(instructions.Sub, "execute_on")
+    @patch.object(instructions.Add, "execute_on")
+    @patch.object(instructions.Nop, "execute_on")
+    def test_execute(self, Nop, Add, Sub, Load, Store, Comp, Jump, Halt):
         """
         Test that the computer executes the correct instructions with the correct arguments.
         Mocks the functions themselves to avoid side effects.
@@ -36,14 +36,14 @@ class TestComputer(unittest.TestCase):
         # No halt, so should run out of memory
         with self.assertRaises(computer.SegmentationFaultError):
             c.execute()
-        nop.assert_called_with(1, 2, 3)
-        add.assert_called_with(4, 5, 6 << 11)
-        sub.assert_called_with(7, 8, 9 << 11)
-        load.assert_called_with(10, 11, 12)
-        store.assert_called_with(13, 14, 15)
-        jump.assert_called_with(16, 17, 18)
-        comp.assert_called_with(19, 20, 21 << 11)
-        halt.assert_called_with(22, 23, 24)
+        Nop.assert_called_with(c, 1, 2, 3)
+        Add.assert_called_with(c, 4, 5, 6 << 11)
+        Sub.assert_called_with(c,7, 8, 9 << 11)
+        Load.assert_called_with(c,10, 11, 12)
+        Store.assert_called_with(c,13, 14, 15)
+        Jump.assert_called_with(c,16, 17, 18)
+        Comp.assert_called_with(c,19, 20, 21 << 11)
+        Halt.assert_called_with(c,22, 23, 24)
 
     def test_print(self):
         """
@@ -59,7 +59,7 @@ class TestComputer(unittest.TestCase):
 
         redirect = io.StringIO()  # Create StringIO object
         sys.stdout = redirect  # and redirect stdout.
-        c.print(2, 3, 4)
+        instructions.Print.execute_on(c, 2, 3, 4)
         sys.stdout = sys.__stdout__
 
         self.assertEqual(redirect.getvalue(), expected)
@@ -70,9 +70,9 @@ class TestComputer(unittest.TestCase):
         """
         c = computer.Computer(memory_size=10)
         with self.assertRaises(computer.SegmentationFaultError):
-            c.print(0, 0, -1)
+            instructions.Print.execute_on(c, 0, 0, -1)
         with self.assertRaises(computer.SegmentationFaultError):
-            c.print(0, 0, 10)
+            instructions.Print.execute_on(c, 0, 0, 10)
 
     def test_load(self):
         """
@@ -96,55 +96,55 @@ class TestComputer(unittest.TestCase):
         # full load from memory
         REG = 3
         expected = combine(E, F)
-        c.load(REG, 0b00000, MEM)
+        instructions.Load.execute_on(c, REG, 0b00000, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # low sig to low sig half load from memory
         REG = 4
         expected = combine(C, F)
-        c.load(REG, 0b10000, MEM)
+        instructions.Load.execute_on(c, REG, 0b10000, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # low sig to high sig half load from memory
         REG = 5
         expected = combine(F, D)
-        c.load(REG, 0b10100, MEM)
+        instructions.Load.execute_on(c, REG, 0b10100, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # high sig to low sig half load from memory
         REG = 6
         expected = combine(C, E)
-        c.load(REG, 0b11000, MEM)
+        instructions.Load.execute_on(c, REG, 0b11000, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # low sig to low sig half load from memory with overwrite
         REG = 7
         expected = combine(0, F)
-        c.load(REG, 0b10010, MEM)
+        instructions.Load.execute_on(c, REG, 0b10010, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # high sig to high sig half load from memory with overwrite
         REG = 8
         expected = combine(E, 0)
-        c.load(REG, 0b11110, MEM)
+        instructions.Load.execute_on(c, REG, 0b11110, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # full load from instruction (immediate)
         REG = 9
         expected = combine(A, B)
-        c.load(REG, 0b00001, MEM)
+        instructions.Load.execute_on(c, REG, 0b00001, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # low sig to low sig half load from instruction (immediate) with overwrite
         REG = 9
         expected = combine(0, B)
-        c.load(REG, 0b10011, MEM)
+        instructions.Load.execute_on(c, REG, 0b10011, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
         # low sig to high sig half load from instruction (immediate) with overwrite
         REG = 10
         expected = combine(B, 0)
-        c.load(REG, 0b10111, MEM)
+        instructions.Load.execute_on(c, REG, 0b10111, MEM)
         self.assertEqual(c.data_regs[REG], expected)
 
     def test_load_error(self):
@@ -153,13 +153,13 @@ class TestComputer(unittest.TestCase):
         """
         c = computer.Computer(memory_size=10)
         with self.assertRaises(computer.SegmentationFaultError):
-            c.load(2, 0, Int(-1))
+            instructions.Load.execute_on(c, 2, 0, Int(-1))
 
         with self.assertRaises(computer.SegmentationFaultError):
-            c.load(2, 0, Int(10))
+            instructions.Load.execute_on(c, 2, 0, Int(10))
 
         # Should not be a problem in immediate mode
-        c.load(2, 0b00001, Int(10))
+        instructions.Load.execute_on(c, 2, 0b00001, Int(10))
 
     def test_store(self):
         """
@@ -183,55 +183,55 @@ class TestComputer(unittest.TestCase):
         # full store from register
         MEM = 1
         expected = combine(C, D)
-        c.store(REG, 0b00000, MEM)
+        instructions.Store.execute_on(c, REG, 0b00000, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # low sig to low sig half store from register
         MEM = 2
         expected = combine(E, D)
-        c.store(REG, 0b10000, MEM)
+        instructions.Store.execute_on(c, REG, 0b10000, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # low sig to high sig half store from register
         MEM = 3
         expected = combine(D, F)
-        c.store(REG, 0b10100, MEM)
+        instructions.Store.execute_on(c, REG, 0b10100, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # high sig to low sig half store from register
         MEM = 4
         expected = combine(E, C)
-        c.store(REG, 0b11000, MEM)
+        instructions.Store.execute_on(c, REG, 0b11000, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # low sig to low sig half store from register with overwrite
         MEM = 5
         expected = combine(0, D)
-        c.store(REG, 0b10010, MEM)
+        instructions.Store.execute_on(c, REG, 0b10010, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # high sig to high sig half store from memory with overwrite
         MEM = 6
         expected = combine(C, 0)
-        c.store(REG, 0b11110, MEM)
+        instructions.Store.execute_on(c, REG, 0b11110, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # full store from instruction (immediate)
         MEM = 7
         expected = combine(A, B)
-        c.store(REG, 0b00001, MEM)
+        instructions.Store.execute_on(c, REG, 0b00001, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # low sig to low sig half store from instruction (immediate) with overwrite
         MEM = 8
         expected = combine(0, B)
-        c.store(REG, 0b10011, MEM)
+        instructions.Store.execute_on(c, REG, 0b10011, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
         # low sig to high sig half store from instruction (immediate) with overwrite
         MEM = 9
         expected = combine(B, 0)
-        c.store(REG, 0b10111, MEM)
+        instructions.Store.execute_on(c, REG, 0b10111, MEM)
         self.assertEqual(c.memory[MEM], expected)
 
     def test_store_error(self):
@@ -240,10 +240,10 @@ class TestComputer(unittest.TestCase):
         """
         c = computer.Computer(memory_size=10)
         with self.assertRaises(computer.SegmentationFaultError):
-            c.store(2, 0, Int(-1))
+            instructions.Store.execute_on(c, 2, 0, Int(-1))
 
         with self.assertRaises(computer.SegmentationFaultError):
-            c.store(2, 0, Int(10))
+            instructions.Store.execute_on(c, 2, 0, Int(10))
 
     def test_mem_set(self):
         """Test setting an address memory (e.g.) loading a constant"""
@@ -342,7 +342,7 @@ class TestComputer(unittest.TestCase):
         """
         c = computer.Computer()
         c.status_reg[constants.RUNNING_FLAG_INDEX] = True
-        c.halt(Int(0), Int(0), Int(0))
+        instructions.Halt.execute_on(c, Int(0), Int(0), Int(0))
 
         self.assertEqual(False, c.status_reg[constants.RUNNING_FLAG_INDEX])
 
@@ -359,19 +359,19 @@ class TestComputer(unittest.TestCase):
         c.data_regs[REG1] = a
         c.data_regs[REG2] = b
 
-        c.add(REG1, REG2, REG3 << 11)
+        instructions.Add.execute_on(c, REG1, REG2, REG3 << 11)
         self.assertEqual(expected, c.data_regs[REG3])
         self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Also test that it can add in-place
-        c.add(REG1, REG2, REG2 << 11)
+        instructions.Add.execute_on(c, REG1, REG2, REG2 << 11)
         self.assertEqual(expected, c.data_regs[REG2])
         self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Test overflow behaviour
         c.data_regs[REG1] = Int((1 << 32) - 1)
         c.data_regs[REG2] = Int(1)
-        c.add(REG1, REG2, REG3 << 11)
+        instructions.Add.execute_on(c, REG1, REG2, REG3 << 11)
         self.assertEqual(1, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
     def test_sub(self):
@@ -387,17 +387,17 @@ class TestComputer(unittest.TestCase):
         c.data_regs[REG1] = a
         c.data_regs[REG2] = b
 
-        c.sub(REG1, REG2, REG3 << 11)
+        instructions.Sub.execute_on(c, REG1, REG2, REG3 << 11)
         self.assertEqual(expected, c.data_regs[REG3])
         self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Also test that it subtract in-place
-        c.sub(REG1, REG2, REG2 << 11)
+        instructions.Sub.execute_on(c, REG1, REG2, REG2 << 11)
         self.assertEqual(expected, c.data_regs[REG2])
         self.assertEqual(0, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
         # Test underflow behaviour
-        c.sub(REG2, REG1, REG3 << 11)
+        instructions.Sub.execute_on(c, REG2, REG1, REG3 << 11)
         self.assertEqual(1, c.status_reg[constants.OVERFLOW_FLAG_INDEX])
 
     def test_jump(self):
@@ -408,28 +408,28 @@ class TestComputer(unittest.TestCase):
 
         # forward jump
         c.PC = 5
-        c.jump(5, 0b00000, 3)
+        instructions.Jump.execute_on(c, 5, 0b00000, 3)
         self.assertEqual(7, c.PC)  # note the included - 1 due to cycle increment
 
         # backward jump
         c.PC = 5
-        c.jump(5, 0b01000, 3)
+        instructions.Jump.execute_on(c, 5, 0b01000, 3)
         self.assertEqual(1, c.PC)
 
         # don't jump if comp bit is required and not set
         c.PC = 5
-        c.jump(5, 0b10000, 3)
+        instructions.Jump.execute_on(c, 5, 0b10000, 3)
         self.assertEqual(5, c.PC)
 
         # ...but do when it is set
         c.comp_reg[5] = True
         c.PC = 5
-        c.jump(5, 0b10000, 3)
+        instructions.Jump.execute_on(c, 5, 0b10000, 3)
         self.assertEqual(7, c.PC)
 
         # test subtract again
         c.PC = 5
-        c.jump(5, 0b11000, 3)
+        instructions.Jump.execute_on(c, 5, 0b11000, 3)
         self.assertEqual(1, c.PC)
 
     def test_jump_error(self):
@@ -441,12 +441,12 @@ class TestComputer(unittest.TestCase):
         # forwards jump
         c.PC = 5
         with self.assertRaises(computer.SegmentationFaultError):
-            c.jump(5, 0b00000, 6)
+            instructions.Jump.execute_on(c, 5, 0b00000, 6)
 
         # backwards jump
         c.PC = 5
         with self.assertRaises(computer.SegmentationFaultError):
-            c.jump(5, 0b01000, 5)
+            instructions.Jump.execute_on(c, 5, 0b01000, 5)
 
     def test_comp(self):
         """
@@ -462,15 +462,15 @@ class TestComputer(unittest.TestCase):
         expected = bitarray.bitarray('0'*32, endian = 'little')
 
         # These two are the same
-        c.comp(REG1, REG2, 3 << 11)
+        instructions.Comp.execute_on(c, REG1, REG2, 3 << 11)
         expected[3] = True
         self.assertEqual(expected, c.comp_reg)
 
         # These are different
-        c.comp(REG1, REG3, 1 << 11)
+        instructions.Comp.execute_on(c, REG1, REG3, 1 << 11)
         self.assertEqual(expected, c.comp_reg)
 
         # Comparing register to itself should also work
-        c.comp(REG3, REG3, 1 << 11)
+        instructions.Comp.execute_on(c, REG3, REG3, 1 << 11)
         expected[1] = True
         self.assertEqual(expected, c.comp_reg)

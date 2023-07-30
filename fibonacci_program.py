@@ -1,7 +1,7 @@
 import unittest
 
-from computer import Computer, Int
-from assembler import assemble
+from computer_core.computer import Computer, Int
+from assembler.assembler import assemble
 
 """
 This file contains a program that, given two starting numbers of a fibonacci-style sequence, 
@@ -12,7 +12,7 @@ The program is not intended to be resilient to invalid inputs such as those resu
 code = """
 LOAD 100 2 # Argument 1 should be loaded into 100 before execution
 LOAD 101 3 # ... and argument 2 into 101.
-LOAD 8 5 IM HLF
+LOAD 8 5 IMMEDIATE HALF
 
 
 [LOOP]
@@ -40,7 +40,7 @@ def tenth_fibonacci_no(starting_a, starting_b):
     computer.set_memory_address(101,Int(starting_b))
 
     # Run
-    computer.execute()
+    computer.execute(debug_mode = False)
 
     # Get result
     return computer.get_memory_address(102)
