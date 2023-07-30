@@ -12,7 +12,7 @@ from bitarray.util import int2ba
 
 
 class Computer:
-    def __init__(self, memory_size=MEMORY_SIZE_DEFAULT):
+    def __init__(self, memory_size=MEMORY_SIZE_MAX):
         # 32, 32-bit data registers
         # self.data_regs = np.zeros(N_DATA_REGISTERS, dtype=Int)
         # the second register is always one

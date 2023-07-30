@@ -1,3 +1,5 @@
+from math import ceil
+
 import numpy as np
 from bitarray import bitarray
 
@@ -13,12 +15,14 @@ class Memory:
         if not 2 <= memory_size <= (1 << 16):
             raise ValueError(f"Invalid memory size {memory_size}. Must be between 2 and 65536")
         self.size = memory_size
-        self.cache_size = CACHE_SIZE
+        self.cache_section_size = CACHE_SECTION_SIZE
+        self.cache_section_number = ceil(memory_size / CACHE_SECTION_RESPONSIBILITY)
 
         self._array = np.zeros(memory_size, dtype=Int)
-        self._cache = np.zeros(CACHE_SIZE, dtype = Int) # value indicates no reference
-        self._cache_addresses = np.ones(CACHE_SIZE, dtype = Int) * ONES
-        self._cache_tree_bits = bitarray('0'*(CACHE_SIZE - 1), endian = 'little')
+        self._cache = np.zeros((self.cache_section_number,CACHE_SECTION_SIZE), dtype = Int) # value indicates no reference
+        self._cache_addresses = np.ones((self.cache_section_number, CACHE_SECTION_SIZE), dtype = Int) * ONES
+        self._cache_tree_bits = [bitarray('0' * (CACHE_SECTION_SIZE - 1), endian ='little')
+                                 for _ in range(self.cache_section_number)]
 
     def __getitem__(self, address):
         if type(address) is slice:
@@ -34,11 +38,13 @@ class Memory:
             raise SegmentationFaultError(
                 f"Attempted to read address {address}, which is out of bounds (max {self.size}).")
 
-        cache_index, cache_hit = self.cache_lookup(address)
+        cache_section, cache_index, cache_hit = self.cache_lookup(address)
         if cache_hit:
-            return self._cache[cache_index]
-        self._cache[cache_index] = self._array[address]
-        return self._cache[cache_index]
+            return self._cache[cache_section, cache_index]
+
+        # Otherwise need to store in the cache
+        self._cache[cache_section, cache_index] = self._array[address]
+        return self._cache[cache_section, cache_index]
 
     def __setitem__(self, address, value):
         if type(address) is slice:
@@ -62,36 +68,50 @@ class Memory:
         if type(value) is not Int:
             raise TypeError("Type of value when setting memory should be uint32.")
 
-        cache_index, cache_hit = self.cache_lookup(address)
-        self._cache[cache_index] = value
+        cache_section, cache_index, cache_hit = self.cache_lookup(address)
 
+        self._cache[cache_section, cache_index] = value
+
+    """
+    Note _cache_tree_bits follows a heap convention: that is, the bits in a single section are indexed as follows:
+
+          ┌------0------┐       ╮
+       ┌--1---┐      ┌--2---┐   ├ _cache_tree_bits index
+     ┌-3┐   ┌-4┐   ┌-5┐   ┌-6┐  ╯
+    [ ][ ] [ ][ ] [ ][ ] [ ][ ] - cache locations
+     0  1   2  3   4  5   6  7  - cache_index
+
+    This convention allows for convenient arithmetic traversal of the tree.
+    """
 
     def cache_lookup(self, address):
-        if address in self._cache_addresses:
-            # Cache hit: move up the tree, flipping bits
-            cache_pos = np.where(self._cache_addresses == address)[0][0]
-            path = cache_pos + self.cache_size - 1
+        cache_section = CACHE_SECTION_INDEX_MASK.get(address)
+        if address in self._cache_addresses[cache_section]:
+
+            #    Cache hit: move up the tree, flipping bits.
+            cache_pos = np.where(self._cache_addresses[cache_section] == address)[0][0]
+            path = cache_pos + self.cache_section_size - 1
             while path != 0:
                 d, m = divmod(path - 1,2)
                 path = d
                 # Flip bit to point away from direction of travel
-                self._cache_tree_bits[path] = 1 - m
-            return cache_pos, True
+                self._cache_tree_bits[cache_section][path] = 1 - m
+            return cache_section, cache_pos, True
         else:
             # Cache miss: move down the tree along the path, flipping bits along the way
             path = 0
-            while path < self.cache_size - 1:
-                self._cache_tree_bits[path] ^= 1
-                path = path*2 + 2 - self._cache_tree_bits[path]
-            path -= self.cache_size - 1
+            while path < self.cache_section_size - 1:
+                self._cache_tree_bits[cache_section][path] ^= 1
+                path = path*2 + 2 - self._cache_tree_bits[cache_section][path]
+            path -= self.cache_section_size - 1
 
             # put whatever is there back into main memory, unless it is the sentinel value 0b111..11
-            if (replaced_address := self._cache_addresses[path]) != ONES:
-                self._array[replaced_address] = self._cache[path]
+            if (replaced_address := self._cache_addresses[cache_section, path]) != ONES:
+                self._array[replaced_address] = self._cache[cache_section, path]
 
             # update address
-            self._cache_addresses[path] = address
-            return path, False
+            self._cache_addresses[cache_section, path] = address
+            return cache_section, path, False
 
 class NoSuchRegisterError(Exception):
     pass

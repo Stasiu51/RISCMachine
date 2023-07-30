@@ -1,17 +1,8 @@
 import io, sys, mock, unittest, bitarray
-from mock import patch, DEFAULT
-
+from mock import DEFAULT
 import numpy as np
-
 Int = np.uint32
-
 import computer, constants
-
-# Import and run other tests, including example programs
-from fibonacci_program import TestFibonacci
-from linked_list_program import TestLinkedList
-from cache_test import TestCache
-
 
 class TestComputer(unittest.TestCase):
 
@@ -483,11 +474,3 @@ class TestComputer(unittest.TestCase):
         c.comp(REG3, REG3, 1 << 11)
         expected[1] = True
         self.assertEqual(expected, c.comp_reg)
-
-        ##### Extensions
-
-
-
-
-if __name__ == "__main__":
-    unittest.main()

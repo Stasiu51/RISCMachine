@@ -1,5 +1,16 @@
-# RISC Machine Design Spec
+# RISC CPU Task Readme
 
+## Running the code
+
+The computer simulation code, unit tests, and example programs (which are also tests) are all in this repository. There are a few dependencies, which are given in *requirements.txt*. These can be installed (I suggest into a virtual environment) with
+`pip install -r requirements.txt`.
+
+All the tests and examples can be run at once through the single script *tests.py*.
+
+I had very little prior knowledge of CPU design or architecture, least of all RISC architectures. Everything I have done in this task has been based on research in the time allocated.
+
+# RISC Machine Design Spec
+ 
 ## Figure of Merit
 
 Obviously, a RISC machine is not a useful tool for calculation when it is a simulation running on a CISC computer. Even if it were to be coded at the lowest level possible such that there was a one-to-one correspondence between simluated RISC instructions and the executed CISC instructions, there would be no advantage to using the RISC set as the CPU is not designed to take advantage by consistently pipelining execution as in a real RISC machine. There is therefore some ambiguity as to the metric(s) to be optimised for when designing its architecture. Possible such metrics are
@@ -16,11 +27,11 @@ The key aim when designing a RISC computer is to keep the per-instruction times 
 
 ## Design goals
 
-The chip I will be designing is a small general purpose microprocessor, similar in capacity to an arduino UNO. 
+The chip I will be designing is a small, inexpensive general purpose microprocessor, similar in capacity to an arduino UNO. I will not be optimising purely for efficient practical design, as if I were, I would simply copy the specification of an existing design, which are the result of decades of iteration by talented teams. I will instead aim to develop an architecture that is in principle capable of all the same calculations as more standard chips in interesting alternative ways using a unified memory and dynamically updated instructions.
 
 My specification is therefore as follows:
 
-- I will use a 32-bit register size, and instruction length. This is an arbitrary choice as, as explained above, in this challenge I will imagine I am designing a physical device. It might well be the case that 32 bit instruction length is a constraint imposed by the circuitry available. It also adds some additional design constraints that make the challenge more fun, and is an homage to actual RISC devices of the 70s and 80s.
+- I will use a 32-bit word size, register size, and instruction length. This is an arbitrary choice as, as explained above, in this challenge I will imagine I am designing a physical device. It might well be the case that 32 bit instruction length is a constraint imposed by the circuitry available. It also adds some additional design constraints that make the challenge more fun, and is an homage to actual RISC devices of the 70s and 80s.
 
 - Addresses will be 16-bit. This leads to a maximum of 262kB of memory, which is sufficient for basic microprocessor tasks. The advantage of 16-bit addresses is that they take up half of one instruction, which allows for interesting manipulation techniques (see later).
 
@@ -30,22 +41,16 @@ My specification is therefore as follows:
 
 - There are an additional 32 one-bit status registers, which I imagine in hardware would consist of a single 32-bit register with dedicated indexing or bit-shift logic.
 
-- From my research it seems both Von-Neumann and Harvard-model (separate program and data memory) memory models have been used on RISC devices. Within the goals I have set myself, I can't see a big reason to use one over the other, but I'd much prefer the device to have a single memory as I think It will be fun to write programs that can change their own code. I will therefore adopt a Von-Neumann model, with the PC initialised to memory address 0. It will be the programmer's responsibility to avoid overwriting the program.
+- From my research it seems both Von-Neumann (unified memory) and Harvard (separate program and data memory) memory models have been used on RISC devices. For the esoteric style of execution I am going for, I need the CPU to be able to edit the memory where the program is stored. A natural way to achieve this is to adopt a Von-Neumann model, with the PC initialised to memory address 0. It will be the programmer's responsibility to avoid overwriting the program.
 
 - The opcode length will be 6. A minimum of 3 is required for the 8 requested instructions, but this leaves room for extension.
 
 ### Instruction format
 
 - Bits 0-5 - opcode 
-- Bits 6-10 - register argument 1
-- Bits 11-15 - either the second register argument (in the case of arithmetic or logic operations) or a set of flags that are immediately loaded into an internal register to further specify the behaviour of an instruction:
-  - For a memory access instruction bits 11-15 specify flags: 
-      - Bit 11 specifies whether the copy instruction should only copy 16 bits. If it is set:
-        - Bit 12 specifies whether the source bits should be the most or least significant 16 bits of the source memory address of register.
-        - Bit 13 specifies whether the source bits should be copied to the most or least significant 16 bits of the destination memory address or register.
-        - Bit 14 specifies if the other 16 bits in the destination memory address or register should be set to 0.
-      - Bit 15 specifies that the source of the bits to be copied is the instruction itself. Combined with the above options, this allows for the manipulation of memory addresses.
-  - For a jump instruction bit 11 specifies whether the jump should be conditional on a 0 or 1 state of the specified bit in the COMP register, and bit 12 specifies whether the jump should increment or decrement the program counter.
+- Bits 6-10 - ARG1: register argument 1
+- Bits 11-15 - ARG2: either the second register argument (in the case of arithmetic or logic operations) or a set of flags that are immediately loaded into an internal register to further specify the behaviour of an instruction:
+- Bits 16 - 31 - DATA: either the third register argument for arithmetic and logic operations (these are only 5-bit, so bits 21-31 are unused in this case); or for jump and load/store instructions, a 16-bit memory address or numeric literal.
 
 ### Instruction list
 (Basic implementation)
@@ -53,15 +58,77 @@ My specification is therefore as follows:
 | -- | -- | --|
 | NOP | 000000 | Ignored
 | HALT | 000001 | Ignored
-| CMP | 000010 | ARG1 data register compared to ARG2 data register, if equal ARG3 status register set to 1 else 0. | 
-| JMP | 000011 | If status register ARG1 is equal to bit 11, then add/subtract the value in bits 16-31 to the PC. Bit 12 specifies whether to add or subtract.|
-| LOAD | 000100 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described above.
-| STORE |000101| Stores data register ARG1 into address in bits 16-31. Behaviour determined by flags in ARG2 as described above.|
-| ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register ARG3 |
-| SUB | 001010 | Subtracts data register ARG2 from ARG1, stores result in data register ARG3 |
-| DEBUG | 111111 | Calls the debug function numbered by ARG1 |
+| CMP | 000010 | ARG1 data register compared to ARG2 data register, if equal DATA status register set to 1 else 0. | 
+| JMP | 000011 | Jump an amount set by DATA depending on the COMP register bit ARG1. ARG2 are execution flags (see below). |
+| LOAD | 000100 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described below.
+| STORE |000101| Stores data register ARG1 into address in DATA. Behaviour determined by flags in ARG2 as described below.|
+| ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register DATA |
+| SUB | 001010 | Subtracts data register ARG2 from ARG1, stores result in data register DATA |
+| PRINT | 111111 | Prints the contents of the data registers ARG1 and ARG2 and the memory stored at address DATA. |
 
+#### Load/store behaviour
+The bits in ARG2 are sent to a 'flag register' of size five bits, where they specify the behaviour of the jump instruction. There are keywords which allow the setting of these flags when producing a program using the assembler.
+
+- Bit 11 (`HLF` in assembly) specifies whether the copy instruction should only copy 16 bits. If it is set:
+    - Bit 12 (`FROM_SIG` in assembly) specifies whether the source bits should be the most or least significant 16 bits of the source memory address of register.
+    - Bit 13 (`TO_SIG` in assembly) specifies whether the source bits should be copied to the most or least significant 16 bits of the destination memory address or register.
+    - Bit 14 (`OW` in assembly) specifies if the other 16 bits in the destination memory address or register should be set to 0.
+- Bit 15 (`IM` in assembly) specifies that the source of the bits to be copied is the instruction itself. Combined with the above options, this allows for the manipulation of memory addresses. Sometimes referred to as 'immediate mode'.
+
+#### Jump behaviour
+
+- Bit 11 (`ON_HIGH` or `ON_LOW` in assembly) specifies whether the jump should be conditional on a 0 or 1 state of the specified bit in the COMP register.
+- Bit 12 (`INC` or `DEC` in assembly) specifies whether the jump should increment or decrement the program counter.
+
+### Assembler
+
+I wrote a simple assembler script (*assembler.py*) to help generate the machine code for the examples. The syntax for the assembly code it takes as input is easily gleaned from the example programs (e.g. in *linked_list_program.py*). The assembler supports comments and provides automatic calculation of jump amounts.
 
 ## Language: Python
 
 I will write the program in python. Were I more concerned about optimal performance, Rust or C++ would be preferable. Another approach might be to write a python module wrapper around a C extension to actually run the code. The fastest execution would be a cross-compiler that just translated the provided script into x86. However, I am most confident in my ability to write good-quality Python, and performance is unlikely to be particularly important, so I will use Python.
+
+# Extension tasks
+
+## Linked list
+
+Using a linked list as part of a program requires abstraction only possible with a higher level language. To use one of these I would need to write a compiler. I therefore interpret this task as showing how it is in principle possible to manipulate a linked list using a program written in my assembly language.
+
+Linked lists fundamentally rely on pointers. Using pointers requires us to be able to read and write to an address that is itself a variable known only at runtime. The obvious way to achieve this is to allow the `LOAD` and `STORE` instructions, as well taking as arguments a source/destination register and an address, to take a second register, whose contents specify the address to be read from or written to. This is not the approach I have taken. The `LOAD` and `STORE` instructions in my specification have only a (normal) literal address mode, and a literal contents ('immediate') mode.
+
+This leads to an alternative approach, which I would not necessarily advocate in professional design but is much more interesting to play with as a toy processor: the program can dynamically update its own code to adjust the arguments of upcoming `LOAD` and `STORE` instructions. The unified memory model makes this possible. A proof of concept program, which traverses the elements of a linked list until it arrives at a sentinel, is given in *linked_list_program.py*.
+
+## Additional instructions
+
+The code structure has been designed for a balance of extensibilty and readability. For the ultimate in extensibiliy, I would implement an 
+
+## Cache
+
+Decisions to be taken when designing a cache system are:
+
+- What should the total cache size be?
+- What should the associativity of the cache be - that is, for any given memory address, how many possibly locations are there in the cache where that memory could be stored. For simplicity, I will take individual addresses as data blocks and not some larger chunk.
+- What replacement/placement policy should be implemented to avoid cache misses whilst keeping operation efficient?
+
+Basic chips such as the Arduino UNO have no cache, as their clock speeds (16MHz for the UNO) are slow enough that they can perform an SRAM access within one clock cycle. Access times for SRAM (as in the UNO) are around 10ns, and its around 50ns for DRAM. For our cache to have any utility, I will suppose the clock speed is 1 GHz, which is probably overkill for a prototyping board such as the Arduino - but perhaps a goal of the board is extremely low latency, perhaps for scientific experiments on a nanosecond timescale.
+
+The main advantage of a cache system in a unified memory system like this one will be fast loading of instructions when performing loops. We would therefore like to be able to keep a set of around 10-20 instructions towards the start of memory consistently in the cache, remaining in cache even when other memory accesses occur to other parts of the memory. However, this is a simple and inexpensive microcontroller with limited memory to begin with, so it does not make sense for the cache to be very big, nor should there be much ancillary data for the implementation of the cache placement/replacement policies.
+
+My design for the cache system is as follows:
+
+- There will be a total of 1kB of unified cache memory. 
+- This is divided into 32 sections each containing space for the contents of 8 memory locations. The first 5 bits of the 16-bit address space determine which of the sections of memory are allowed to be cached in. 
+- The associativity of the system is therefore 8. Each section of cache has responsibility for 2048 possibly memory addresses.
+- It is intended that any loops of instructions in the program will be reliably held in the first of these caches.
+
+- A least-recently-used (LRU) replacement policy is suitable. However, for systems with a high associativity such as this, an exact LRU system is expensive to implement, as it is necessary to store and compare data on the access times of all the cache locations. I will therefore use a pseudo-LRU algorithm, tree-PLRU. This algorithm was used in early RISC architectures such as the PowerPC G4 and is not too complicated to implement. This algorithm requires storing only 7 'tree bits' per 8 cache locations, and provides in most cases a good approximation to LRU performance. 
+- The inclusion of a cache in this simulation greatly *slows* performance as it adds complexity to every memory access. It is intended that the physical circuitry that performs the tree traversal would be highly efficient.
+
+The cache is implemented as part of the `Memory` class in *memories.py*. A detailed example of its operation is given in the unit test in *cache_test.py*.
+
+
+
+
+
+
+
