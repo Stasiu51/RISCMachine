@@ -19,15 +19,17 @@ Obviously, a RISC machine is not a useful tool for calculation when it is a simu
 - Actual memory usage on the host device (this is quite easy to get close to optimal I think)
 - Available memory/program size of simulated device
 
-Optimising for these three metrics is an exercise in standard program optimisation and I suspect somewhat misses the purpose of this challenge. I think a more interesting approach is to imagine that the design of the computer specified here represents the design of a physical RISC CPU, and that the programmatic implementation to some extent is a simulation of the calculations performed on the device. The challenge is then to consider a design specification that would be suitable for a RISC device and implement its function, even where this gives rise to complexities that will provide no actual advantage in terms of the three metrics listed above. Where I have a choice, I will make arbitrary decisions based on my own sense of 'mechanical aesthetic'. I will also try, where possible, to program the simulation in an efficient way.
+Optimising for these three metrics is an exercise in standard program optimisation and I suspect somewhat misses the purpose of this challenge. I think a more interesting approach is to imagine that the design of the computer specified here represents the design of a physical RISC CPU, and that the programmatic implementation to some extent is a simulation of the calculations performed on the device. The challenge is then to consider a design specification that would be suitable for a RISC device and implement its function, even where this gives rise to complexities that will provide no actual advantage in terms of the three metrics listed above. I set out my chosen goals in the 'Design Goals' section of this document. I will also try, where possible, to program the simulation in an efficient way.
 
-## Design Constraints - RISC advantages
+## Design Constraints - RISC architecture
 
 The key aim when designing a RISC computer is to keep the per-instruction times as low as possible (this *reduced* complexity of each instruction is the namesake of the concept, rather than the smaller number of available instructions). The idea is that along with intelligent compiling, this will outweigh the advantage of having a more versatile instruction set, where individual instructions may take many cycles to execute. As far as possible, one should aim for a one-CPU-cycle-per-intruction execution. I am not familiar with CPU design, but it seems that having a fixed instruction length, within which there is a fixed opcode length, and generally consistent structuring of the instructions, helps when designing the circuitry to be pipelined.
 
-## Design goals
+## Design Goals
 
 The chip I will be designing is a small, inexpensive general purpose microprocessor, similar in capacity to an arduino UNO. I will not be optimising purely for efficient practical design, as if I were, I would simply copy the specification of an existing design, which are the result of decades of iteration by talented teams. I will instead aim to develop an architecture that is in principle capable of all the same calculations as more standard chips in interesting alternative ways using a unified memory and dynamically updated instructions.
+
+## Architecture Specification
 
 My specification is therefore as follows:
 
@@ -56,14 +58,14 @@ My specification is therefore as follows:
 (Basic implementation)
 | Instruction | Opcode (Bits 0-5) | Arguments Bits (4-31 as above) |
 | -- | -- | --|
-| NOP | 000000 | Ignored
-| HALT | 000001 | Ignored
+| NOP | 000000 | Ignored.
+| HALT | 000001 | Ignored.
 | CMP | 000010 | ARG1 data register compared to ARG2 data register, if equal DATA status register set to 1 else 0. | 
 | JMP | 000011 | Jump an amount set by DATA depending on the COMP register bit ARG1. ARG2 are execution flags (see below). |
 | LOAD | 000100 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described below.
 | STORE |000101| Stores data register ARG1 into address in DATA. Behaviour determined by flags in ARG2 as described below.|
-| ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register DATA |
-| SUB | 001010 | Subtracts data register ARG2 from ARG1, stores result in data register DATA |
+| ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register DATA. |
+| SUB | 001010 | Subtracts data register ARG2 from ARG1, stores result in data register DATA. |
 | PRINT | 111111 | Prints the contents of the data registers ARG1 and ARG2 and the memory stored at address DATA. |
 
 #### Load/store behaviour
