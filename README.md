@@ -12,6 +12,8 @@ The computer simulation code, unit tests, and example programs (which are also t
 
 4. (Optional) activate the venv: `venv\Scripts\activate` on Windows, `source venv/bin/activate` on Mac/Linux.
 
+5. Install requirements: `pip install -r requirements.txt`
+
 All the tests and examples can be run at once through the single script *tests.py*:
 
 `py tests.py`
