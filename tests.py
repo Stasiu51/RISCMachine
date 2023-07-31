@@ -1,6 +1,6 @@
 import unittest
 
-# Import and run other tests, including example programs
+# Import and run tests, including example programs
 from computer_core.computer_test import TestComputer
 from computer_core.instructions_test import TestInstructions
 from computer_core.cache_test import TestCache
