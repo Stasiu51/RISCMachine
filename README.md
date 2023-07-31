@@ -2,8 +2,15 @@
 
 ## Running the code
 
-The computer simulation code, unit tests, and example programs (which are also tests) are all in this repository. There are a few dependencies, which are given in *requirements.txt*. These can be installed (I suggest into a virtual environment) with
-`pip install -r requirements.txt`.
+The computer simulation code, unit tests, and example programs (which are also tests) are all in this repository. There are a few dependencies, which are given in *requirements.txt*. These can be installed (I suggest into a virtual environment) with pip.
+
+1. Clone the repository into a local folder: `git clone https://github.com/Stasiu51/RISCMachine/`
+
+2. Navigate into it: `cd RISCMachine`
+
+3. (Optional) make a new python virtual environment: `py -m venv venv`
+
+4. (Optional) activate the venv: `venv\Scripts\activate` on Windows, `source venv/bin/activate` on Mac/Linux.
 
 All the tests and examples can be run at once through the single script *tests.py*:
 
