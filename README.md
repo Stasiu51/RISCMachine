@@ -101,7 +101,7 @@ The bits in ARG2 are sent to a 'flag register' of size five bits, where they spe
 
 ### Assembler
 
-I wrote a simple assembler script (*assembler.py*) to help generate the machine code for the examples. The syntax for the assembly code it takes as input is easily gleaned from the example programs (e.g. in *linked_list_program.py*). The assembler supports comments and provides automatic calculation of jump amounts.
+I wrote a simple assembler script (*assembler/assembler.py*) to help generate the machine code for the examples. The syntax for the assembly code it takes as input is easily gleaned from the example programs (e.g. in *linked_list_program.py*). The assembler supports comments and provides automatic calculation of jump amounts.
 
 ## Language: Python
 
@@ -119,7 +119,7 @@ This leads to an alternative approach, which I would not necessarily advocate in
 
 ## Additional instructions
 
-The instructions are implemented as static classes which derive from an abstract `Instruction` class (in *instructions.py*). This makes it simple to extend the instruction set, by simply adding more derived classes to *instructions.py*. Note that these classes are never instantiated; binary instructions are created and stored in the computer memory, which are decoded by the computer object. In addition to the required core instructions, I implemented (see the bottom of *instructions.py*):
+The instructions are implemented as static classes which derive from an abstract `Instruction` class (in *computer_core/instructions.py*). This makes it simple to extend the instruction set, by simply adding more derived classes to *computer_core/instructions.py*. Note that these classes are never instantiated; binary instructions are created and stored in the computer memory, which are decoded by the computer object. In addition to the required core instructions, I implemented (see the bottom of *computer_core/instructions.py*):
 - `LSHIFT` and `RSHIFT` - Left and right bit shift operations, which shift the contents of a register by a number of places specified by the contents of another register.
 - `COMP_GRT` and `COMP_LST` - similar to the `COMP` instruction but which set the bit in the COMP_REG if the contents of the specified register are strictly greater or less than one another respectively.
 
@@ -147,7 +147,7 @@ My design for the cache system is as follows:
 - A least-recently-used (LRU) replacement policy is a common strategy. However, for systems with a high associativity such as this, an exact LRU system is expensive to implement, as it is necessary to store and compare data on the access times of all the cache locations. I will therefore use a pseudo-LRU algorithm, tree-PLRU. This algorithm was used in early RISC architectures such as the PowerPC G4 and is not too complicated to implement. This algorithm requires storing only 7 'tree bits' per 8 cache locations, and provides in most cases a good approximation to LRU performance. 
 - The inclusion of a cache in this simulation *slows* performance of the simulation as it adds complexity to every memory access. It is intended that, *in silico*, the physical circuitry that performs the tree traversal would be highly efficient.
 
-The cache is implemented as part of the `Memory` class in *memories.py*. A detailed example of its operation is given in the unit test in *cache_test.py*.
+The cache is implemented as part of the `Memory` class in *computer_core/memories.py*. A detailed example of its operation is given in the unit test in *computer_core/cache_test.py*.
 
 ## Cost of execution metric
 
