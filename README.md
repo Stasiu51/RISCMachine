@@ -78,7 +78,8 @@ My specification is therefore as follows:
 | PRINT | 111111 | Prints the contents of the data registers ARG1 and ARG2 and the memory stored at address DATA. |
 
 (Additional extension instructions)
-
+| Instruction | Opcode (Bits 0-5) | Arguments Bits (4-31 as above) |
+| -- | -- | --|
 | LSHIFT | 001 011 | Shifts the contents of data register ARG1 left by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
 | RSHIFT | 001 100 | Shifts the contents of data register ARG1 right by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
 | COMPGRT | 010 010| As COMP, but set the COMP register bit only if the contents of the ARG1 data register are greater than the contents of the ARG2 data register.|
