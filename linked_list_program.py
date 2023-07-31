@@ -32,7 +32,7 @@ ARG = 100
 OUT = 101
 code = f"""
 # First load the argument, which is the memory address of the first element of the list, into register 2.
-LOAD {ARG} 2 #0
+LOAD {ARG} 2
 
 # Load the sentinel value into register 10 for later comparison.
 LOAD B1111111111111111 10 IMMEDIATE HALF #1
