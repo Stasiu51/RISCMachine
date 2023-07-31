@@ -22,17 +22,17 @@ Disclaimer: I had little prior knowledge of CPU design or architecture. Everythi
  
 ## Figure of Merit
 
-Obviously, a RISC machine is not a useful tool for calculation when it is a simulation running on a CISC computer. Even if it were to be coded at the lowest level possible such that there was a one-to-one correspondence between simluated RISC instructions and the executed CISC instructions, there would be no advantage to using the RISC set as the CPU is not designed to take advantage by consistently pipelining execution as in a real RISC machine. There is therefore some ambiguity as to the metric(s) to be optimised for when designing its architecture. Possible such metrics are
+Obviously, a RISC machine is not a useful tool for calculation when it is a simulation running on a CISC computer. Even if it were to be coded at the lowest level possible such that there was a one-to-one correspondence between simluated RISC instructions and the executed CISC instructions, there would be no advantage to using the RISC instruction set as the CPU is not designed to take advantage of it by consistently pipelining execution as in a real RISC machine. There is therefore some ambiguity as to the metric(s) to be optimised for when designing its architecture. Possible such metrics could be
 
 - Actual execution time on the host device
 - Actual memory usage on the host device (this is quite easy to get close to optimal I think)
 - Available memory/program size of simulated device
 
-Optimising for these three metrics is an exercise in standard program optimisation and I suspect somewhat misses the purpose of this challenge. I think a more interesting approach is to imagine that the design of the computer specified here represents the design of a physical RISC CPU, and that the programmatic implementation to some extent is a simulation of the calculations performed on the device. The challenge is then to consider a design specification that would be suitable for a RISC device and implement its function, even where this gives rise to complexities that will provide no actual advantage in terms of the three metrics listed above. I set out my chosen goals in the 'Design Goals' section of this document. I will also try, where possible, to program the simulation in an efficient way.
+Optimising for these three metrics is an exercise in standard program optimisation and I suspect somewhat misses the purpose of this challenge. I think a more interesting approach is to imagine that the design of the computer specified here represents the design of a physical RISC CPU, and that the programmatic implementation to some extent is a simulation of the calculations performed on the device. The challenge is then to consider a design specification that would be suitable for a RISC device and implement its function, even where this gives rise to complexities that will provide no actual advantage in terms of the three metrics listed above. I set out my chosen goals in the 'Design Goals' section of this document.
 
 ## Design Constraints - RISC architecture
 
-The key aim when designing a RISC computer is to keep the per-instruction times as low as possible (this *reduced* complexity of each instruction is the namesake of the concept, rather than the smaller number of available instructions). The idea is that along with intelligent compiling, this will outweigh the advantage of having a more versatile instruction set, where individual instructions may take many cycles to execute. As far as possible, one should aim for a one-CPU-cycle-per-intruction execution. I am not familiar with CPU design, but it seems that having a fixed instruction length, within which there is a fixed opcode length, and generally consistent structuring of the instructions, helps when designing the circuitry to be pipelined.
+The key aim when designing a RISC computer is to keep the per-instruction times as low as possible (this *reduced* complexity of each instruction is the namesake of the concept, rather than the smaller number of available instructions). The idea is that along with intelligent compiling, this will outweigh the advantage of having a more versatile instruction set as in a CISC device, where individual instructions may take many cycles to execute. As far as possible, one should aim for a one-CPU-cycle-per-intruction execution. I am not familiar with CPU design, but it seems that having a fixed instruction length, within which there is a fixed opcode length, and generally consistent structuring of the instructions, helps when designing the circuitry to be pipelined.
 
 ## Design Goals
 
@@ -46,13 +46,13 @@ My specification is therefore as follows:
 
 - Addresses will be 16-bit. This leads to a maximum of 262kB of memory, which is sufficient for basic microprocessor tasks. The advantage of 16-bit addresses is that they take up half of one instruction, which allows for interesting manipulation techniques (see later).
 
-- There will be 32 data registers. Of these, data register 0 will always read zero and data register 1 will always read one. Attempting to load into these registers is equivalent to a NOP. This is loosely inspired by the RISC-1 computer of 1981.
+- There will be 32 data registers. Of these, data register 0 will always read zero and data register 1 will always read one. Attempting to load into these registers is equivalent to a NOP. This behaviour is convenient for programming, and is loosely inspired by the RISC-1 computer of 1981.
 
 - There is a 16-bit program counter register.
 
-- There are an additional 32 one-bit status registers, which I imagine in hardware would consist of a single 32-bit register with dedicated indexing or bit-shift logic.
+- There are an additional 32 one-bit status registers, which I imagine in hardware would consist of a single 32-bit register with dedicated indexing or cyclic bit-shift logic.
 
-- From my research it seems both Von-Neumann (unified memory) and Harvard (separate program and data memory) memory models have been used on RISC devices. For the esoteric style of execution I am going for, I need the CPU to be able to edit the memory where the program is stored. A natural way to achieve this is to adopt a Von-Neumann model, with the PC initialised to memory address 0. It will be the programmer's responsibility to avoid overwriting the program.
+- From my research it seems both Von-Neumann (unified memory) and Harvard (separate program and data memory) memory models have been used on RISC devices. For the esoteric style of execution I am going for, I need the CPU to be able to edit the memory where the program is stored. A natural way to achieve this is to adopt a Von-Neumann model, with the PC initialised to memory address 0. It will be the programmer's responsibility to avoid overwriting the program in a deleterious way during execution.
 
 - The opcode length will be 6. A minimum of 3 is required for the 8 requested instructions, but this leaves room for extension.
 
@@ -69,13 +69,20 @@ My specification is therefore as follows:
 | -- | -- | --|
 | NOP | 000000 | Ignored.
 | HALT | 000001 | Ignored.
-| CMP | 000010 | ARG1 data register compared to ARG2 data register, if equal DATA status register set to 1 else 0. | 
+| COMP | 000010 | Compares contents of ARG1 data register to ARG2 data register. If equal, COMP register specified by DATA set to 1, else set to 0. | 
 | JMP | 000011 | Jump an amount set by DATA depending on the COMP register bit ARG1. ARG2 are execution flags (see below). |
 | LOAD | 000100 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described below.
 | STORE |000101| Stores data register ARG1 into address in DATA. Behaviour determined by flags in ARG2 as described below.|
 | ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register DATA. |
 | SUB | 001010 | Subtracts data register ARG2 from ARG1, stores result in data register DATA. |
 | PRINT | 111111 | Prints the contents of the data registers ARG1 and ARG2 and the memory stored at address DATA. |
+
+(Additional extension instructions)
+
+| LSHIFT | | Shifts the contents of data register ARG1 left by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
+| RSHIFT | | Shifts the contents of data register ARG1 right by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
+| COMPGRT | | As COMP, but set the COMP register bit only if the contents of the ARG1 data register are greater than the contents of the ARG2 data register.|
+| COMPLST | | As COMP, but set the COMP register bit only if the contents of the ARG1 data register are less than the contents of the ARG2 data register.|
 
 #### Load/store behaviour
 The bits in ARG2 are sent to a 'flag register' of size five bits, where they specify the behaviour of the jump instruction. There are keywords which allow the setting of these flags when producing a program using the assembler.
