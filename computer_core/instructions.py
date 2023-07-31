@@ -41,6 +41,10 @@ class Instruction(ABC):
         """
         pass
 
+#
+# Core instructions - extension instructions are at the end of this file
+#
+
 
 class Nop(Instruction):
     """ Do nothing. """
@@ -302,7 +306,6 @@ class Add(Instruction):
         reg3 = data >> 11
         if computer.debug_mode: print(f"add reg_1={arg1}, reg_2={arg2}, reg_3={reg3}")
         if int(computer.data_regs[arg1]) + int(computer.data_regs[arg2]) >= 1 << 32:  # Overflow occurred.
-            print("Warning: integer overflow. Flag set.")
             computer.status_reg[OVERFLOW_FLAG_INDEX] = True
         else:
             computer.status_reg[OVERFLOW_FLAG_INDEX] = False
@@ -332,11 +335,7 @@ class Sub(Instruction):
     def execute_on(computer, arg1: Int, arg2: Int, data: Int):
         reg_3 = data >> 11
         if computer.debug_mode: print(f"sub {arg1=}, {arg2=}, {reg_3=}")
-        if reg_3 <= 1:
-            print(f"Warning: attempted to subtract into register {reg_3} which is read-only.")
-            return
         if int(computer.data_regs[arg1]) - int(computer.data_regs[arg2]) < 0:  # Underflow occurred.
-            print("Warning: integer underflow. Flag set.")
             computer.status_reg[OVERFLOW_FLAG_INDEX] = True
         else:
             computer.status_reg[OVERFLOW_FLAG_INDEX] = False
@@ -370,4 +369,126 @@ class Comp(Instruction):
         computer.comp_reg[comp_reg] = computer.data_regs[arg1] == computer.data_regs[arg2]
 
 
-instructions = [Nop, Halt, Add, Sub, Load, Store, Comp, Jump, Print]
+#
+# Extension instructions
+#
+
+class LShift(Instruction):
+    """
+    Shift the contents of the register ARG1 left by an amount given by the contents of register ARG2,
+    and store the result in the register given by DATA. Set overflow bit if necessary.
+    """
+
+    @staticmethod
+    def opcode() -> Int:
+        return OPCODE_LSHIFT
+
+    @staticmethod
+    def assembly_token() -> str:
+        return 'LSHIFT'
+
+    @staticmethod
+    def make_instruction(args: List[str], line_index, labels) -> Int:
+        reg1, reg2, reg3 = require_args(args, 3, 3)
+        return make_ins_reg(OPCODE_LSHIFT, *parse_arg_multiple(32, reg1, reg2, reg3))
+
+    @staticmethod
+    def execute_on(computer, arg1: Int, arg2: Int, data: Int):
+        reg_3 = data >> 11
+        if computer.debug_mode: print(f"LShift reg_1={arg1}, reg_2={arg2}, {reg_3=}")
+        if computer.data_regs[arg2] >= 32: # No need to calculate such large numbers.
+            if computer.data_regs[arg1] > 0:
+                computer.status_reg[OVERFLOW_FLAG_INDEX] = True
+            computer.data_regs[reg_3] = ZERO
+            return
+
+        if int(computer.data_regs[arg1]) << int(computer.data_regs[arg2]) >= 1 << 32:  # Overflow occurred.
+            computer.status_reg[OVERFLOW_FLAG_INDEX] = True
+        else:
+            computer.status_reg[OVERFLOW_FLAG_INDEX] = False
+        computer.data_regs[reg_3] = computer.data_regs[arg1] << computer.data_regs[arg2]
+
+
+class RShift(Instruction):
+    """ Shift the contents of the register ARG1 right by an amount given by the contents of register ARG2,
+    and store the result in the register given by DATA. """
+
+    @staticmethod
+    def opcode() -> Int:
+        return OPCODE_RSHIFT
+
+    @staticmethod
+    def assembly_token() -> str:
+        return 'RSHIFT'
+
+    @staticmethod
+    def make_instruction(args: List[str], line_index, labels) -> Int:
+        reg1, reg2, reg3 = require_args(args, 3, 3)
+        return make_ins_reg(OPCODE_RSHIFT, *parse_arg_multiple(32, reg1, reg2, reg3))
+
+    @staticmethod
+    def execute_on(computer, arg1: Int, arg2: Int, data: Int):
+        reg_3 = data >> 11
+        if computer.debug_mode: print(f"RShift reg_1={arg1}, reg_2={arg2}, {reg_3=}")
+        if computer.data_regs[arg2] >= 32: # Will definitely give 0.
+            computer.data_regs[reg_3] = ZERO
+            return
+        computer.data_regs[reg_3] = computer.data_regs[arg1] >> computer.data_regs[arg2]
+
+
+
+class Comp_Greater_Than(Instruction):
+    """
+    If the contents of data register ARG1 is greater than the contents of data register ARG2,
+    set the specified bit in the COMP_REG.
+    """
+
+    @staticmethod
+    def opcode() -> Int:
+        return OPCODE_COMPGRT
+
+    @staticmethod
+    def assembly_token() -> str:
+        return 'COMPGRT'
+
+    @staticmethod
+    def make_instruction(args: List[str], line_index, labels) -> Int:
+        reg1, reg2, comp_reg = require_args(args, 3, 3)
+        return make_ins_reg(OPCODE_COMPGRT, *parse_arg_multiple(32, reg1, reg2, comp_reg))
+
+    @staticmethod
+    def execute_on(computer, arg1: Int, arg2: Int, data: Int):
+        comp_reg = data >> 11
+        if computer.debug_mode:
+            print(f"comp_grt reg_1={arg1}, reg_2={arg2}, comp_reg={comp_reg}")
+        if computer.debug_mode: print(f"compare {arg1=}, {arg2=}, {comp_reg=}")
+        computer.comp_reg[comp_reg] = computer.data_regs[arg1] > computer.data_regs[arg2]
+
+class Comp_Less_Than(Instruction):
+    """
+    If the contents of data register ARG1 is less than the contents of data register ARG2,
+    set the specified bit in the COMP_REG.
+    """
+
+    @staticmethod
+    def opcode() -> Int:
+        return OPCODE_COMPLST
+
+    @staticmethod
+    def assembly_token() -> str:
+        return 'COMPLST'
+
+    @staticmethod
+    def make_instruction(args: List[str], line_index, labels) -> Int:
+        reg1, reg2, comp_reg = require_args(args, 3, 3)
+        return make_ins_reg(OPCODE_COMPLST, *parse_arg_multiple(32, reg1, reg2, comp_reg))
+
+    @staticmethod
+    def execute_on(computer, arg1: Int, arg2: Int, data: Int):
+        comp_reg = data >> 11
+        if computer.debug_mode:
+            print(f"comp_lst reg_1={arg1}, reg_2={arg2}, comp_reg={comp_reg}")
+        if computer.debug_mode: print(f"compare {arg1=}, {arg2=}, {comp_reg=}")
+        computer.comp_reg[comp_reg] = computer.data_regs[arg1] < computer.data_regs[arg2]
+
+instructions = [Nop, Halt, Add, Sub, Load, Store, Comp, Jump, Print, LShift, RShift, Comp_Greater_Than, Comp_Less_Than]

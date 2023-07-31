@@ -5,9 +5,11 @@
 The computer simulation code, unit tests, and example programs (which are also tests) are all in this repository. There are a few dependencies, which are given in *requirements.txt*. These can be installed (I suggest into a virtual environment) with
 `pip install -r requirements.txt`.
 
-All the tests and examples can be run at once through the single script *tests.py*.
+All the tests and examples can be run at once through the single script *tests.py*:
 
-I had very little prior knowledge of CPU design or architecture, least of all RISC architectures. Everything I have done in this task has been based on research in the time allocated.
+`py tests.py`
+
+I had little prior knowledge of CPU design or architecture. Everything I have done in this task has been based on research in the time allocated.
 
 # RISC Machine Design Spec
  
@@ -102,7 +104,11 @@ This leads to an alternative approach, which I would not necessarily advocate in
 
 ## Additional instructions
 
-The code structure has been designed for a balance of extensibilty and readability. For the ultimate in extensibiliy, I would implement an 
+The instructions are implemented as static classes which derive from an abstract `Instruction` class (in *instructions.py*). This makes it simple to extend the instruction set, by simply adding more derived classes to *instructions.py*. Note that these classes are never instantiated; binary instructions are created and stored in the computer memory, which are decoded by the computer object. In addition to the required core instructions, I implemented (see the bottom of *instructions.py*):
+- `LSHIFT` and `RSHIFT` - Left and right bit shift operations, which shift the contents of a register by a number of places specified by the contents of another register.
+- `COMP_GRT` and `COMP_LST` - similar to the `COMP` instruction but which set the bit in the COMP_REG if the contents of the specified register are strictly greater or less than one another respectively.
+
+I make use of these instructions in the example program in *integer_division_program.py*.
 
 ## Cache
 
@@ -123,14 +129,26 @@ My design for the cache system is as follows:
 - The associativity of the system is therefore 8. Each section of cache has responsibility for 2048 possibly memory addresses.
 - It is intended that any loops of instructions in the program will be reliably held in the first of these caches.
 
-- A least-recently-used (LRU) replacement policy is suitable. However, for systems with a high associativity such as this, an exact LRU system is expensive to implement, as it is necessary to store and compare data on the access times of all the cache locations. I will therefore use a pseudo-LRU algorithm, tree-PLRU. This algorithm was used in early RISC architectures such as the PowerPC G4 and is not too complicated to implement. This algorithm requires storing only 7 'tree bits' per 8 cache locations, and provides in most cases a good approximation to LRU performance. 
-- The inclusion of a cache in this simulation greatly *slows* performance as it adds complexity to every memory access. It is intended that the physical circuitry that performs the tree traversal would be highly efficient.
+- A least-recently-used (LRU) replacement policy is a common strategy. However, for systems with a high associativity such as this, an exact LRU system is expensive to implement, as it is necessary to store and compare data on the access times of all the cache locations. I will therefore use a pseudo-LRU algorithm, tree-PLRU. This algorithm was used in early RISC architectures such as the PowerPC G4 and is not too complicated to implement. This algorithm requires storing only 7 'tree bits' per 8 cache locations, and provides in most cases a good approximation to LRU performance. 
+- The inclusion of a cache in this simulation *slows* performance of the simulation as it adds complexity to every memory access. It is intended that the physical circuitry that performs the tree traversal would be highly efficient.
 
 The cache is implemented as part of the `Memory` class in *memories.py*. A detailed example of its operation is given in the unit test in *cache_test.py*.
 
+## Cost of execution metric
 
+My model for the time to execute a program is as follows. The clock time is chosen to be fairly low (therefore inexpensive) whilst still benefiting from a cache. The other times are taken from memory access times and L1 cache access times of modern Intel CPUs:
 
+- The CPU runs at 1GHz, and all instructions take one cycle (1ns) to execute. In addition
 
+- For a LOAD/STORE operation, a cache hit (reading from/writing to the SRAM cache) pauses execution for 1ns (equivalent to one extra cycle).
+
+- For a LOAD/STORE operation, a cache miss (reading from/writing to the DRAM memory) pauses execution for 80ns.
+
+- The memory cost of running a program will be the number of unique memory locations in both the data caches and the RAM. I track both seperately.
+
+To track these costs without introducing additional complexity into the computer code, I wrote a class `CostMetricTracker` in *cost_metric_tracker.py* which works as a context manager that hooks onto the internal function calls of the computer object, so that the computer code does not have to explicitly call the logging object.
+
+You can see this class working in the example programs in *fibonacci_program.py*, *linked_list_program.py* and *integer_division_program.py*, where it is used to print a summary of the program execution costs.
 
 
 

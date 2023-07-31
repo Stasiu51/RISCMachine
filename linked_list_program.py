@@ -26,10 +26,13 @@ The goal of the program is to find and return the value of the final element in 
 import unittest
 from computer_core.computer import Computer, Int
 from assembler.assembler import assemble
+from computer_core.cost_metric_tracker import CostMetricTracker
 
-code = """
+ARG = 100
+OUT = 101
+code = f"""
 # First load the argument, which is the memory address of the first element of the list, into register 2.
-LOAD 100 2 #0
+LOAD {ARG} 2 #0
 
 # Load the sentinel value into register 10 for later comparison.
 LOAD B1111111111111111 10 IMMEDIATE HALF #1
@@ -57,7 +60,7 @@ STORE 2 11 HALF
 LOAD 0 5
 
 # Store the output into memory slot 101 for returning.
-STORE 5 101
+STORE 5 {OUT}
 
 HALT
 """
@@ -65,6 +68,7 @@ HALT
 
 class TestLinkedList(unittest.TestCase):
     def test_linked_list(self):
+        print("Running linked list example...")
         # Assemble the code
         program = assemble(code)
 
@@ -81,11 +85,14 @@ class TestLinkedList(unittest.TestCase):
         c.set_memory_chunk(0, program)
 
         # Provide the first address to the program as an argument
-        c.set_memory_address(100, Int(50))
+        c.set_memory_address(ARG, Int(50))
 
-        c.execute(debug_mode = False)
+        with CostMetricTracker(c) as cost_tracker:
+            c.execute(debug_mode = False)
 
         # Get the result
-        result = c.get_memory_address(101)
+        result = c.get_memory_address(OUT)
 
         self.assertEqual(11, result)
+        print("Correctly returned end of list.")
+        print(cost_tracker.summary())
