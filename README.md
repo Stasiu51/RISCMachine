@@ -67,22 +67,22 @@ My specification is therefore as follows:
 (Basic implementation)
 | Instruction | Opcode (Bits 0-5) | Arguments Bits (4-31 as above) |
 | -- | -- | --|
-| NOP | 000000 | Ignored.
-| HALT | 000001 | Ignored.
-| COMP | 000010 | Compares contents of ARG1 data register to ARG2 data register. If equal, COMP register specified by DATA set to 1, else set to 0. | 
-| JMP | 000011 | Jump an amount set by DATA depending on the COMP register bit ARG1. ARG2 are execution flags (see below). |
-| LOAD | 000100 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described below.
-| STORE |000101| Stores data register ARG1 into address in DATA. Behaviour determined by flags in ARG2 as described below.|
-| ADD | 001001 | Adds data registers ARG1 and ARG2, stores result in data register DATA. |
-| SUB | 001010 | Subtracts data register ARG2 from ARG1, stores result in data register DATA. |
+| NOP | 000 000 | Ignored.
+| HALT | 000 001 | Ignored.
+| ADD | 001 001 | Adds data registers ARG1 and ARG2, stores result in data register DATA. |
+| SUB | 001 010 | Subtracts data register ARG2 from ARG1, stores result in data register DATA. |
+| COMP | 010 000 | Compares contents of ARG1 data register to ARG2 data register. If equal, COMP register specified by DATA set to 1, else set to 0. | 
+| LOAD | 011 001 | Load value into data register ARG1. Behaviour determined by flags in ARG2 as described below.
+| STORE |011 010| Stores data register ARG1 into address in DATA. Behaviour determined by flags in ARG2 as described below.|
+| JMP | 100 001 | Jump an amount set by DATA depending on the COMP register bit ARG1. ARG2 are execution flags (see below). |
 | PRINT | 111111 | Prints the contents of the data registers ARG1 and ARG2 and the memory stored at address DATA. |
 
 (Additional extension instructions)
 
-| LSHIFT | | Shifts the contents of data register ARG1 left by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
-| RSHIFT | | Shifts the contents of data register ARG1 right by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
-| COMPGRT | | As COMP, but set the COMP register bit only if the contents of the ARG1 data register are greater than the contents of the ARG2 data register.|
-| COMPLST | | As COMP, but set the COMP register bit only if the contents of the ARG1 data register are less than the contents of the ARG2 data register.|
+| LSHIFT | 001 011 | Shifts the contents of data register ARG1 left by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
+| RSHIFT | 001 100 | Shifts the contents of data register ARG1 right by a number of bits given by the contents of data register ARG2, store result in data register ARG3|
+| COMPGRT | 010 010| As COMP, but set the COMP register bit only if the contents of the ARG1 data register are greater than the contents of the ARG2 data register.|
+| COMPLST | 010 011 | As COMP, but set the COMP register bit only if the contents of the ARG1 data register are less than the contents of the ARG2 data register.|
 
 #### Load/store behaviour
 The bits in ARG2 are sent to a 'flag register' of size five bits, where they specify the behaviour of the jump instruction. There are keywords which allow the setting of these flags when producing a program using the assembler.
