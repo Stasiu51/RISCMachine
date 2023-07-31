@@ -16,9 +16,9 @@ All the tests and examples can be run at once through the single script *tests.p
 
 `py tests.py`
 
-I had little prior knowledge of CPU design or architecture. Everything I have done in this task has been based on research in the time allocated.
-
 # RISC Machine Design Spec
+
+Disclaimer: I had little prior knowledge of CPU design or architecture. Everything I have done in this task has been based on research in the time allocated.
  
 ## Figure of Merit
 
