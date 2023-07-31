@@ -36,7 +36,7 @@ The key aim when designing a RISC computer is to keep the per-instruction times 
 
 ## Design Goals
 
-The chip I will be designing is a small, inexpensive general purpose microprocessor, similar in capacity to an arduino UNO. I will not be optimising purely for efficient practical design, as if I were, I would simply copy the specification of an existing design, which are the result of decades of iteration by talented teams. I will instead aim to develop an architecture that is in principle capable of all the same calculations as more standard chips in interesting alternative ways using a unified memory and dynamically updated instructions.
+The chip I will be designing is a small, inexpensive general purpose microprocessor, similar in capacity to an arduino UNO. I will not be optimising purely for efficient practical design, as if I were, I would simply copy the specification of an existing design, which are the result of decades of iteration by talented teams. I will instead aim to develop an architecture that is in principle capable of all the same calculations as more standard chips in interesting alternative ways using a unified memory and dynamically updated instructions. A further somewhat artificiant goal is that the device must have a clock speed of at least 1GHz, as below this speed there would be unlikely to be any advantage in implementing a cache. Perhaps the device is aimed at very low-latency tasks, e.g. in physics experiements?
 
 ## Architecture Specification
 
@@ -133,7 +133,7 @@ Decisions to be taken when designing a cache system are:
 - What should the associativity of the cache be - that is, for any given memory address, how many possibly locations are there in the cache where that memory could be stored. For simplicity, I will take individual addresses as data blocks and not some larger chunk.
 - What replacement/placement policy should be implemented to avoid cache misses whilst keeping operation efficient?
 
-Basic chips such as the Arduino UNO have no cache, as their clock speeds (16MHz for the UNO) are slow enough that they can perform an SRAM access within one clock cycle. Access times for SRAM (as in the UNO) are around 10ns, and its around 50ns for DRAM. For our cache to have any utility, I will suppose the clock speed is 1 GHz, which is probably overkill for a prototyping board such as the Arduino - but perhaps a goal of the board is extremely low latency, perhaps for scientific experiments on a nanosecond timescale.
+Basic chips such as the Arduino UNO have no cache, as their clock speeds (16MHz for the UNO) are slow enough that they can perform an SRAM access within one clock cycle. Access times for SRAM (as in the UNO) are around 10ns, or it would be around 50ns for DRAM. For our cache to have any utility, I will suppose the clock speed is 1 GHz, which is probably overkill for a prototyping board such as the Arduino - but perhaps a goal of the board is extremely low latency, perhaps for scientific experiments on a nanosecond timescale.
 
 The main advantage of a cache system in a unified memory system like this one will be fast loading of instructions when performing loops. We would therefore like to be able to keep a set of around 10-20 instructions towards the start of memory consistently in the cache, remaining in cache even when other memory accesses occur to other parts of the memory. However, this is a simple and inexpensive microcontroller with limited memory to begin with, so it does not make sense for the cache to be very big, nor should there be much ancillary data for the implementation of the cache placement/replacement policies.
 
@@ -145,7 +145,7 @@ My design for the cache system is as follows:
 - It is intended that any loops of instructions in the program will be reliably held in the first of these caches.
 
 - A least-recently-used (LRU) replacement policy is a common strategy. However, for systems with a high associativity such as this, an exact LRU system is expensive to implement, as it is necessary to store and compare data on the access times of all the cache locations. I will therefore use a pseudo-LRU algorithm, tree-PLRU. This algorithm was used in early RISC architectures such as the PowerPC G4 and is not too complicated to implement. This algorithm requires storing only 7 'tree bits' per 8 cache locations, and provides in most cases a good approximation to LRU performance. 
-- The inclusion of a cache in this simulation *slows* performance of the simulation as it adds complexity to every memory access. It is intended that the physical circuitry that performs the tree traversal would be highly efficient.
+- The inclusion of a cache in this simulation *slows* performance of the simulation as it adds complexity to every memory access. It is intended that, *in silico*, the physical circuitry that performs the tree traversal would be highly efficient.
 
 The cache is implemented as part of the `Memory` class in *memories.py*. A detailed example of its operation is given in the unit test in *cache_test.py*.
 
@@ -153,11 +153,11 @@ The cache is implemented as part of the `Memory` class in *memories.py*. A detai
 
 My model for the time to execute a program is as follows. The clock time is chosen to be fairly low (therefore inexpensive) whilst still benefiting from a cache. The other times are taken from memory access times and L1 cache access times of modern Intel CPUs:
 
-- The CPU runs at 1GHz, and all instructions take one cycle (1ns) to execute. In addition
+- The CPU runs at 1GHz, and all instructions take one cycle (1ns) to execute. In addition:
 
-- For a LOAD/STORE operation, a cache hit (reading from/writing to the SRAM cache) pauses execution for 1ns (equivalent to one extra cycle).
+- for a LOAD/STORE operation, a cache hit (reading from/writing to the SRAM cache) pauses execution for 1ns (equivalent to one extra cycle);
 
-- For a LOAD/STORE operation, a cache miss (reading from/writing to the DRAM memory) pauses execution for 80ns.
+- for a LOAD/STORE operation, a cache miss (reading from/writing to the DRAM memory) pauses execution for 80ns.
 
 - The memory cost of running a program will be the number of unique memory locations in both the data caches and the RAM. I track both seperately.
 
