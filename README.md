@@ -2,7 +2,7 @@
 
 ## Running the code
 
-The computer simulation code, unit tests, and example programs (which are also tests) are all in this repository. There are a few dependencies, which are given in *requirements.txt*. These can be installed (I suggest into a virtual environment) with pip.
+The computer simulation code, unit tests, and example programs (which are also tests) are all in this repository. There are a few dependencies, which are given in *requirements.txt*. These can be installed (I suggest into a virtual environment) with pip. The following instructions assume a working python installation that can be used in a shell with `py`.
 
 1. Clone the repository into a local folder: `git clone https://github.com/Stasiu51/RISCMachine/`
 
