@@ -10,10 +10,6 @@ import numpy as np
 from computer_core.instructions import instructions
 from computer_core.constants import *
 
-COPY_FLAGS = {"HLF": 0b10000, "FRM_SIG": 0b01000, "TO_SIG": 0b00100, "OW": 0b00010, "IM": 0b00001}
-JUMP_FLAGS = {"ON_HIGH": 0b10000, "ON_LOW": 0, "DEC": 0b01000, "INC": 0}
-address_max = 1 << 16
-
 
 def assemble(program: str):
     """
