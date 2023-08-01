@@ -1,6 +1,8 @@
 from numpy import uint32 as Int
 from numpy import ndarray as Array
-ZERO, ONE, ONES, HALF_ONES, SIG_HALF_ONES = Int(0), Int(1), ~Int(0), Int((1<<16)-1), Int(((1<<16)-1)<<16)
+
+ZERO, ONE, ONES, HALF_ONES, SIG_HALF_ONES = Int(0), Int(1), ~Int(0), Int((1 << 16) - 1), Int(((1 << 16) - 1) << 16)
+
 
 class Mask:
     def __init__(self, mask, shift):
@@ -65,6 +67,7 @@ JUMP_SUBTRACT_INDEX = 3
 INSTRUCTION_TIME_NS = 1
 CACHE_HIT_TIME_NS = 1
 CACHE_MISS_TIME_NS = 70
+
 
 class SegmentationFaultError(Exception):
     pass

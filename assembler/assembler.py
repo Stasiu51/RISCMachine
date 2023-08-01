@@ -55,12 +55,3 @@ def assemble(program: str):
         except Exception as e:
             raise SyntaxError(f"Could not parse line {line_i}: '{line}'.") from e
     return np.array(program_data, dtype=Int)
-
-code = """
-#comment
-NOP
-
-NOP #comment
-# a asd
-"""
-print(assemble(code))
