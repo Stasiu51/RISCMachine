@@ -96,3 +96,6 @@ class TestLinkedList(unittest.TestCase):
         self.assertEqual(11, result)
         print("Correctly returned end of list.")
         print(cost_tracker.summary())
+
+if __name__ == "__main__":
+    unittest.main()
