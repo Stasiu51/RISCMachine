@@ -87,7 +87,7 @@ f"""Instructions executed: {self.instructions_executed}.
 Cache hits: {self.cache_hits} ({100*self.cache_hits/self.memory_accesses:.1f}%)
 Cache misses: {self.cache_misses} ({100*self.cache_misses/self.memory_accesses:.1f}%)
 RAM memory used: {ram_mem} bytes.
-Cache memory used: {cache_mem} bytes.
+Data register memory used: {cache_mem} bytes.
 -----------------------------
 Total execution time: {self.execution_time_ns}ns.
 Total memory used: {ram_mem+cache_mem} bytes.
