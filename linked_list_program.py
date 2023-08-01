@@ -35,8 +35,8 @@ code = f"""
 LOAD {ARG} 2
 
 # Load the sentinel value into register 10 for later comparison.
-LOAD B1111111111111111 10 IMMEDIATE HALF #1
-LOAD B1111111111111111 10 IMMEDIATE HALF TO_SIG #2
+LOAD B1111111111111111 10 IMMEDIATE HALF
+LOAD B1111111111111111 10 IMMEDIATE HALF TO_SIG
 
 [MAINLOOP]
 # Calculate address of pointer to next element into register 3
