@@ -67,7 +67,7 @@ def tenth_fibonacci_no(A, B):
 
     # Run
     with CostMetricTracker(computer, debug_mode=False) as cost_tracker:
-        computer.execute(debug_mode = True)
+        computer.execute(debug_mode = False)
 
     # Get result
     div = computer.get_memory_address(OUT1)
