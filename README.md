@@ -38,7 +38,7 @@ The key aim when designing a RISC computer is to keep the per-instruction times 
 
 ## Design Goals
 
-The chip I will be designing is a small, inexpensive general purpose microprocessor, similar in capacity to an arduino UNO. I will not be optimising purely for efficient practical design, as if I were, I would simply copy the specification of an existing design, which are the result of decades of iteration by talented teams. I will instead aim to develop an architecture that is in principle capable of all the same calculations as more standard chips in interesting alternative ways using a unified memory and dynamically updated instructions. A further somewhat artificiant goal is that the device must have a clock speed of at least 1GHz, as below this speed there would be unlikely to be any advantage in implementing a cache. Perhaps the device is aimed at very low-latency tasks, e.g. in physics experiements?
+The chip I will be designing is a small, inexpensive general purpose microprocessor, similar in capacity to an arduino UNO. I will not be optimising purely for efficient practical design, as if I were, I would simply copy the specification of an existing design, which are the result of decades of iteration by talented teams. I will instead aim to develop an architecture that is in principle capable of all the same calculations as more standard chips in interesting alternative ways using a unified memory and dynamically updated instructions. A further somewhat artificial goal is that the device must have a clock speed of at least 1GHz, as below this speed there would be unlikely to be any advantage in implementing a cache. Perhaps the device is aimed at very low-latency tasks, e.g. in physics experiments?
 
 ## Architecture Specification
 
