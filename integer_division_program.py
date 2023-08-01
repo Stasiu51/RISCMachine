@@ -54,7 +54,7 @@ HALT
 """
 program = assemble(code)
 
-def tenth_fibonacci_no(A, B):
+def integer_divide(A, B):
     print(f"Running division with {A=}, {B=}...")
     computer = Computer()
 
@@ -85,7 +85,7 @@ class TestIntegerDivision(unittest.TestCase):
             (1236738, 457, 2706, 96)
         ]
         for arg_1, arg_2, exp_div, exp_rem in inputs_and_expected:
-            self.assertEqual((exp_div, exp_rem),tenth_fibonacci_no(arg_1,arg_2))
+            self.assertEqual((exp_div, exp_rem),integer_divide(arg_1,arg_2))
 
 if __name__ == "__main__":
     unittest.main()
