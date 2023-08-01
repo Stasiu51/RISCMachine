@@ -76,7 +76,7 @@ def tenth_fibonacci_no(A, B):
     print(cost_tracker.summary())
     return div, rem
 
-class TestIntergerDivision(unittest.TestCase):
+class TestIntegerDivision(unittest.TestCase):
     def test_integer_division(self):
         inputs_and_expected = [
             (1,1,1,0),
